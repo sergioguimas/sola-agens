@@ -5,22 +5,20 @@ import (
 )
 
 // fastpath resolve "sim"/"cancelar" soltos sem LLM (specs/02 §6). Só roda com
-// uma mensagem de texto, texto normalizado inteiro igual a uma palavra e
+// uma mensagem de texto (ou áudio transcrito), texto normalizado inteiro igual a uma palavra e
 // exatamente um agendamento aguardando confirmação. As operações vêm de
 // operacoes.confirmar/cancelar do registro: sem elas, a intenção fica desligada.
 //
 // Devolve aplicou=false para seguir ao LLM (inclusive quando a operação volta
 // com erro de regra); falha != nil é erro técnico (F2).
 func (e *turnoExec) fastpath(c sistema.Contexto) (texto string, aplicou bool, f *falha) {
-	if len(e.t.Mensagens) != 1 {
-		return "", false, nil
-	}
-	m := e.t.Mensagens[0]
-	if m.Texto == "" || len(m.Anexos) > 0 || len(c.AguardandoConfirmacao) != 1 {
+	// fpTexto só vem preenchido com UMA mensagem de texto puro ou de áudio já
+	// transcrito (F5): "sim" falado confirma como "sim" digitado.
+	if len(e.t.Mensagens) != 1 || e.fpTexto == "" || len(c.AguardandoConfirmacao) != 1 {
 		return "", false, nil
 	}
 
-	n := Normalizar(m.Texto)
+	n := Normalizar(e.fpTexto)
 	var operacao, resposta string
 	switch {
 	case contemPalavra(e.dic.Palavras.Confirmar, n):

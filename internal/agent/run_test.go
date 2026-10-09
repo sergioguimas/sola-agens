@@ -396,7 +396,7 @@ func TestMidiaSemTextoRespostaFixa(t *testing.T) {
 		mem    string
 	}{
 		{"imagem", []mensagem.Anexo{{Tipo: "imagem"}}, Padrao().Respostas.MidiaNaoSuportada, "[imagem]"},
-		// FASE 5: áudio com política processar ainda é resposta fixa.
+		// sem Transcritor montado, áudio com política processar vale como resposta fixa (F5 em audio_test.go).
 		{"audio", []mensagem.Anexo{{Tipo: "audio", DuracaoS: 12}}, Padrao().Respostas.MidiaNaoSuportada, "[áudio 12s]"},
 		{"outro", []mensagem.Anexo{{Tipo: "outro", TipoOriginal: "sticker"}}, Padrao().Respostas.NaoSuportado, "[anexo]"},
 	}

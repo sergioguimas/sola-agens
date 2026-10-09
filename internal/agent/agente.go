@@ -11,6 +11,7 @@ import (
 	"sola-agens/internal/openapi"
 	"sola-agens/internal/sistema"
 	"sola-agens/internal/store"
+	"sola-agens/internal/transcricao"
 )
 
 // Agente é o agente em tempo de execução: o registro (yaml) mais o que o boot
@@ -66,6 +67,9 @@ type Motor struct {
 	Config Config
 	Clock  func() time.Time
 	Log    *slog.Logger
+	// Transcritor converte o áudio do cliente em texto (F5). nil = o motor não
+	// processa áudio: a política "processar" vale como resposta_fixa.
+	Transcritor transcricao.Transcritor
 }
 
 func (m *Motor) agora() time.Time {

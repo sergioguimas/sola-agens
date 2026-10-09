@@ -89,10 +89,10 @@ Escalar **não** pausa a conversa: quem pausa é a resposta humana (F3).
 2. `DuracaoS > limites.audio_max_s` → `respostas.audioLongo`, modo=fixa, fim (sem baixar).
 3. `GET baixarMidia(mensagemId)` com o ticket **daquela** mensagem (o ticket é por mensagem; na
    rajada, cada áudio usa o seu). Resposta `{ mime, tamanho, base64 }` (Eliza 07 §4.2).
-   `NOT_FOUND` → "o áudio não chegou aqui, pode mandar de novo?", fim. `MEDIA_TOO_LARGE` →
+   `NOT_FOUND` → `respostas.audioNaoChegou`, fim. `MEDIA_TOO_LARGE` →
    `respostas.audioLongo`, fim. 5xx/`WHATSAPP_UNAVAILABLE` → F2.
 4. `Tamanho` informado na mensagem > 16 MB → `respostas.audioLongo` antes de baixar, fim.
-5. `transcricao.Transcrever(bytes, mime)` (Gemini ou Groq — 04 §4). Falha → `respostas.falhaTecnica`,
+5. `transcricao.Transcrever(bytes, mime)` (Gemini ou Groq — 04 §4). Falha → `respostas.audioFalhou`,
    sem escalar (o cliente pode escrever).
 6. Texto vira a mensagem do turno; memória `"[áudio Ns] " + texto`. Segue no F1 passo 13.
 7. Bytes descartados ao fim do passo 5. Nada de áudio no disco ou no log.

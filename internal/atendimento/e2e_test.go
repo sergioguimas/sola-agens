@@ -58,8 +58,10 @@ type elizaFalso struct {
 	srv      *httptest.Server
 	spec     []byte
 	contexto json.RawMessage
-	mu       sync.Mutex
-	pedidos  []pedido
+	// midia atende GET /mensagens/{id}/midia: status e corpo; nil = 404 NOT_FOUND.
+	midia   func(id string) (int, string)
+	mu      sync.Mutex
+	pedidos []pedido
 }
 
 func novoEliza(t *testing.T) *elizaFalso {
@@ -103,6 +105,13 @@ func (e *elizaFalso) servir(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "POST" && r.URL.Path == prefixo+"/agendamentos":
 		w.WriteHeader(201)
 		io.WriteString(w, `{"data":{"id":"ag-novo","status":"pending"}}`)
+	case r.Method == "GET" && strings.HasPrefix(r.URL.Path, prefixo+"/mensagens/") && strings.HasSuffix(r.URL.Path, "/midia") && e.midia != nil:
+		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, prefixo+"/mensagens/"), "/midia")
+		status, corpo := e.midia(id)
+		w.WriteHeader(status)
+		io.WriteString(w, corpo)
+	case r.Method == "POST" && r.URL.Path == prefixo+"/escalonamentos":
+		io.WriteString(w, `{"data":{"equipeNotificada":true}}`)
 	case r.Method == "POST" && r.URL.Path == prefixo+"/mensagens":
 		io.WriteString(w, `{"data":{"mensagemId":"wa-out-1"}}`)
 	default:

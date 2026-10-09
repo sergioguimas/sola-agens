@@ -21,6 +21,8 @@ type Respostas struct {
 	FalhaTecnica      string
 	MidiaNaoSuportada string
 	AudioLongo        string
+	AudioNaoChegou    string // só padrão do motor: o sistema ainda não tem este campo
+	AudioFalhou       string // só padrão do motor; não promete equipe (a falha de transcrição não escala)
 	NaoSuportado      string
 	EquipeSemContato  string
 }
@@ -51,6 +53,8 @@ func Padrao() Dicionario {
 			FalhaTecnica:      "Não consegui resolver agora. Já avisei a equipe, que vai te responder por aqui.",
 			MidiaNaoSuportada: "Por enquanto eu só entendo texto e áudio. Pode me escrever?",
 			AudioLongo:        "Esse áudio ficou longo pra mim. Pode mandar um mais curto ou escrever?",
+			AudioNaoChegou:    "O áudio não chegou aqui, pode mandar de novo?",
+			AudioFalhou:       "Não consegui entender esse áudio. Pode me escrever?",
 			NaoSuportado:      "Por enquanto eu só entendo texto e áudio. Pode me escrever?",
 			EquipeSemContato:  "Vou deixar anotado para a equipe, que te responde assim que puder.",
 		},

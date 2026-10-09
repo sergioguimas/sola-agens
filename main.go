@@ -1,6 +1,6 @@
 // Comando sola-agens: motor de atendimento por LLM da Sola (specs/05).
-// Fases 1–4: config, agentes, OpenAPI → ferramentas, HTTP, store (dedupe,
-// apagamento), manutenção e o agente (debounce → fila por conversa → LLM).
+// Fases 1–5: config, agentes, OpenAPI → ferramentas, HTTP, store (dedupe,
+// apagamento), manutenção e o agente (debounce → fila por conversa → LLM) e áudio (transcrição).
 package main
 
 import (
@@ -25,6 +25,7 @@ import (
 	"sola-agens/internal/llm/gemini"
 	"sola-agens/internal/manutencao"
 	"sola-agens/internal/store/sqlite"
+	"sola-agens/internal/transcricao"
 	"sola-agens/internal/trava/memoria"
 )
 
@@ -81,10 +82,20 @@ func run(log *slog.Logger) error {
 	}
 	defer st.Close()
 
+	provedor := gemini.NewClient(cfg.GeminiAPIKey, nil, log)
+	// F5: AGENS_TRANSCRICAO escolhe gemini (padrão, mesmo cliente e retry do LLM) ou groq.
+	transcritor, err := transcricao.New(transcricao.Config{
+		Provedor: cfg.Transcricao, GroqKey: cfg.GroqAPIKey, ModeloGemini: cfg.Model,
+	}, provedor, nil)
+	if err != nil {
+		return err
+	}
+
 	motor := &agent.Motor{
-		Store: st,
-		LLM:   gemini.NewClient(cfg.GeminiAPIKey, nil, log),
-		Log:   log,
+		Store:       st,
+		LLM:         provedor,
+		Transcritor: transcritor,
+		Log:         log,
 		Config: agent.Config{
 			Temperature: cfg.Temperature, ThinkingBudget: cfg.ThinkingBudget, PausaHumanaH: cfg.PausaHumanaH,
 		},

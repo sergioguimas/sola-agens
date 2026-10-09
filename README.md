@@ -1,8 +1,8 @@
 # Sola Agens — atendente da Sola
 
 **Status:** em construção (09/10/2026). Todas as
-decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–4 do build
-feitas (o agens já atende de ponta a ponta com fakes). Próximo passo: fase 5 (áudio). PR do Eliza codado (contrato 07, aceite pendente).
+decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–5 do build
+feitas (atende texto e áudio de ponta a ponta com fakes). Próximo passo: fase 6 (fechamento). PR do Eliza codado (contrato 07, aceite pendente).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:
@@ -71,3 +71,13 @@ Estrutura, padrão de documentação e boa parte do código vêm do Smaug
 - `Pool.Close` cancela turnos que estouram o prazo; cada item tem `recover`.
 - **Risco aceito:** o 202 sai quando a mensagem entra no debounce; se a fila da conversa (100) estiver cheia quando a rajada fecha, o lote é descartado com log de erro e o Eliza não tem como saber. Com 100 itens por conversa, só acontece com o agens travado.
 - `-race` não roda nesta máquina (sem gcc/cgo); debounce, worker e atendimento rodados com `-count=8` sem instabilidade. Rodar `-race` no fechamento em Linux/container.
+
+**Fase 5 (09/10/2026)**
+
+- `internal/transcricao` copiado do Smaug (gemini sobre `llm.Provider`, groq multipart, fake). A interface devolve também `Uso` (tokens), somado ao turno; modelo do Groq sem env (padrão `whisper-large-v3-turbo`). Idioma `pt`.
+- O ticket viaja em `mensagem.Mensagem.Ticket` (um por mensagem, preenchido em `atendimento.Servico.Mensagem`); `baixarMidia` usa o ticket do próprio áudio. O contexto continua usando o mais recente.
+- F5 roda antes do contexto (passo 12): áudio longo, tamanho > 16 MB, `NOT_FOUND` (`audioNaoChegou`, texto só do motor), `MEDIA_TOO_LARGE` e bytes > 16 MB terminam o turno em `modo=fixa` sem LLM, mesmo que a rajada tenha texto. Falha da transcrição (ou texto vazio): `falhaTecnica`, `modo=fixa`, `resultado=erro_transcricao`, sem escalar. Outro erro de download: F2; ticket vencido no download: `ticket_invalido`.
+- O LLM vê a transcrição como texto digitado; a memória grava `[áudio Ns] <texto>`. Fastpath vale para um único áudio transcrito.
+- Sem `Transcritor` no Motor, política `processar` continua valendo como `resposta_fixa`.
+
+- **Revisão Opus:** falha de transcrição respondia `falhaTecnica` ("já avisei a equipe") sem escalar — agora usa `audioFalhou` ("Não consegui entender esse áudio. Pode me escrever?"). Download de mídia ganhou executor próprio com timeout de no mínimo 30 s (o Eliza espera até 15 s pela Evolution; os 10 s do `AGENS_SISTEMA_TIMEOUT` cortariam antes). Custo da transcrição calculado com o modelo que transcreveu (`Uso.Modelo`), não com o do agente; teste novo.

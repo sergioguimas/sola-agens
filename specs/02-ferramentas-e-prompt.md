@@ -126,6 +126,8 @@ sem pontuação nas pontas — nada de "contém", diferente do webhook antigo do
 | `audioLongo` | "Esse áudio ficou longo pra mim. Pode mandar um mais curto ou escrever?" |
 | `naoSuportado` | igual a `midiaNaoSuportada` |
 | `equipeSemContato` | "Vou deixar anotado para a equipe, que te responde assim que puder." |
+| `audioNaoChegou` | "O áudio não chegou aqui, pode mandar de novo?" (só padrão do motor) |
+| `audioFalhou` | "Não consegui entender esse áudio. Pode me escrever?" (só padrão do motor; não promete equipe, a falha de transcrição não escala) |
 
 Antes do build, conferir os textos de `web/lib/domain/mensagens.ts` do Eliza e trazer os que
 existirem para as chaves equivalentes (os do Eliza ganham, para o cliente final não perceber troca de

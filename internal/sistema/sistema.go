@@ -72,6 +72,7 @@ type operacao struct{ f openapi.Ferramenta }
 // Real implementa Sistema sobre um conector.Executor.
 type Real struct {
 	exec                                conector.Executor
+	execMidia                           conector.Executor // nil = exec
 	contexto, responder, escalar, midia operacao
 }
 
@@ -104,9 +105,20 @@ func Novo(exec conector.Executor, spec []byte, ops agentes.Operacoes) (*Real, er
 	return r, nil
 }
 
+// ComMidia usa outro executor (com timeout maior) só para baixar mídia: o
+// Eliza espera até 15 s pela Evolution, acima do AGENS_SISTEMA_TIMEOUT.
+func (r *Real) ComMidia(exec conector.Executor) *Real {
+	r.execMidia = exec
+	return r
+}
+
 // chamar executa e converte erro de regra em *ErrSistema.
 func (r *Real) chamar(ctx context.Context, op operacao, args map[string]any, id conector.Identidade) (json.RawMessage, error) {
-	res, err := r.exec.Executar(ctx, op.f, args, id)
+	return r.chamarCom(ctx, r.exec, op, args, id)
+}
+
+func (r *Real) chamarCom(ctx context.Context, exec conector.Executor, op operacao, args map[string]any, id conector.Identidade) (json.RawMessage, error) {
+	res, err := exec.Executar(ctx, op.f, args, id)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +172,11 @@ func (r *Real) Escalar(ctx context.Context, id conector.Identidade, motivo, resu
 }
 
 func (r *Real) BaixarMidia(ctx context.Context, id conector.Identidade, mensagemID string) (Midia, error) {
-	d, err := r.chamar(ctx, r.midia, map[string]any{"mensagemId": mensagemID}, id)
+	exec := r.exec
+	if r.execMidia != nil {
+		exec = r.execMidia
+	}
+	d, err := r.chamarCom(ctx, exec, r.midia, map[string]any{"mensagemId": mensagemID}, id)
 	if err != nil {
 		return Midia{}, err
 	}

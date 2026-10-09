@@ -13,6 +13,12 @@ type Mensagem struct {
 	Texto        string // vazio quando só há anexo
 	Anexos       []Anexo
 	NomeExibicao string // pushName; só conveniência, nunca identidade
+
+	// Ticket é o da requisição que trouxe ESTA mensagem (vazio no deMim). O
+	// ticket é por mensagem: baixarMidia de um áudio da rajada usa o do próprio
+	// áudio. DECISÃO (fase 5): o ticket viaja dentro da Mensagem, assim entrada,
+	// debounce e Turno guardam um por mensagem sem mudar de assinatura.
+	Ticket string
 }
 
 // Anexo de uma mensagem. O agens nunca guarda o arquivo.

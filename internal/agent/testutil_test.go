@@ -78,7 +78,13 @@ type sistemaFalso struct {
 	Escaladas   []escalada
 	EscalarErrs []error // consumidos em ordem; além do fim, sucesso
 	Tickets     []string
+
+	// BaixarMidia: MidiaFn decide por mensagemId; Baixas registra o ticket de cada chamada.
+	MidiaFn func(id string) (sistema.Midia, error)
+	Baixas  []baixa
 }
+
+type baixa struct{ Ticket, ID string }
 
 func (s *sistemaFalso) Contexto(_ context.Context, id conector.Identidade) (sistema.Contexto, error) {
 	s.mu.Lock()
@@ -113,7 +119,14 @@ func (s *sistemaFalso) Escalar(_ context.Context, id conector.Identidade, motivo
 	return true, nil
 }
 
-func (s *sistemaFalso) BaixarMidia(context.Context, conector.Identidade, string) (sistema.Midia, error) {
+func (s *sistemaFalso) BaixarMidia(_ context.Context, id conector.Identidade, mensagemID string) (sistema.Midia, error) {
+	s.mu.Lock()
+	s.Baixas = append(s.Baixas, baixa{id.Ticket, mensagemID})
+	fn := s.MidiaFn
+	s.mu.Unlock()
+	if fn != nil {
+		return fn(mensagemID)
+	}
 	return sistema.Midia{}, nil
 }
 

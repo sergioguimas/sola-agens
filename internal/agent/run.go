@@ -28,6 +28,9 @@ const (
 	ResultadoErroSistema   = "erro_sistema"
 	ResultadoErroEnvio     = "erro_envio"
 	ResultadoTicketInvalid = "ticket_invalido"
+	// ResultadoErroTranscricao: a transcrição falhou e o cliente recebeu a
+	// falhaTecnica sem escalonamento (F5 passo 5). DECISÃO: valor novo; a coluna é texto livre.
+	ResultadoErroTranscricao = "erro_transcricao"
 )
 
 const (
@@ -90,7 +93,9 @@ type turnoExec struct {
 
 	dic      Dicionario
 	nome     string // primeiro nome do cliente identificado
-	textoMem string // texto do turno como o LLM e a memória o veem
+	textoMem string // texto do turno como a memória o grava (áudio: "[áudio Ns] <texto>")
+	textoLLM string // texto do turno como o LLM o vê (áudio transcrito = texto digitado)
+	fpTexto  string // texto para o fastpath: mensagem única de texto ou de áudio transcrito
 
 	// Acumulado do turno (store.Turno).
 	modelo  string
@@ -98,6 +103,9 @@ type turnoExec struct {
 	ferr    []store.FerramentaLog
 	tin     int
 	tout    int
+	// transcrição: tokens já contados em tin/tout, custo calculado com o modelo dela
+	tinTransc, toutTransc int
+	custoTranscricao      int64
 	escalou bool
 	escrita bool // houve escrita (método ≠ GET) com sucesso
 }
@@ -118,6 +126,10 @@ func (m *Motor) Run(ctx context.Context, t Turno) error {
 	e.log = m.log().With("agente", t.Conversa.Agente, "tenant", t.Conversa.Tenant,
 		"conversa", mensagem.HashContato(t.Conversa.Contato), "turno", uuid.NewString())
 	e.textoMem = juntarTextos(t.Mensagens)
+	e.textoLLM = e.textoMem
+	if len(t.Mensagens) == 1 && len(t.Mensagens[0].Anexos) == 0 {
+		e.fpTexto = t.Mensagens[0].Texto
+	}
 	e.dic = m.padrao()
 	return e.rodar()
 }
@@ -137,6 +149,17 @@ func (e *turnoExec) rodar() error {
 	// 11–12) só mídia que não processamos.
 	if e.soMidiaFixa() {
 		return e.concluir(store.ModoFixa, e.respostaMidiaFixa())
+	}
+
+	// 12) áudio com política processar: baixa, transcreve e vira texto (F5).
+	if e.temAudioProcessar() {
+		d, f := e.processarAudios()
+		if f != nil {
+			return e.falhar(f)
+		}
+		if d != nil {
+			return e.encerrarAudio(d)
+		}
 	}
 
 	// 13) contexto do turno.
@@ -198,12 +221,11 @@ func (e *turnoExec) pausado() error {
 	return e.registrar(store.ModoPausado, ResultadoOK)
 }
 
-// politicaEfetiva é a política de mídia que vale hoje.
-func politicaEfetiva(ag *Agente, tipo string) string {
-	p := ag.Registro.PoliticaMidia(tipo)
-	// FASE 5: áudio com política "processar" será baixado, transcrito e virará o
-	// texto do turno (specs/02 §8, specs/03 F5). Até lá vale como resposta fixa.
-	if p == agentes.MidiaProcessar {
+// politica é a política de mídia que vale hoje: "processar" só existe para
+// áudio e só com Transcritor montado; fora disso vale como resposta fixa.
+func (e *turnoExec) politica(tipo string) string {
+	p := e.ag.Registro.PoliticaMidia(tipo)
+	if p == agentes.MidiaProcessar && !(tipo == "audio" && e.m.Transcritor != nil) {
 		return agentes.MidiaRespostaFixa
 	}
 	return p
@@ -217,7 +239,7 @@ func (e *turnoExec) soMidiaFixa() bool {
 			return false
 		}
 		for _, a := range msg.Anexos {
-			if politicaEfetiva(e.ag, a.Tipo) != agentes.MidiaRespostaFixa {
+			if e.politica(a.Tipo) != agentes.MidiaRespostaFixa {
 				return false
 			}
 		}
@@ -305,7 +327,7 @@ func (e *turnoExec) loopLLM(c sistema.Contexto) (string, *falha) {
 	if f != nil {
 		return "", f
 	}
-	contents := append(hist, llm.Turn{Role: "user", Parts: []llm.Part{{Text: e.textoMem}}})
+	contents := append(hist, llm.Turn{Role: "user", Parts: []llm.Part{{Text: e.textoLLM}}})
 
 	e.modelo = e.ag.Modelo
 	tb := e.m.Config.ThinkingBudget
@@ -512,10 +534,15 @@ func (e *turnoExec) cauda() (context.Context, context.CancelFunc) {
 
 // concluir envia a resposta, grava a memória (cliente + agente) e registra o turno.
 func (e *turnoExec) concluir(modo, texto string) error {
+	return e.concluirCom(modo, texto, ResultadoOK)
+}
+
+// concluirCom é o concluir com o resultado do turno informado (ok, ou o
+// resultado de um fim antecipado da F5).
+func (e *turnoExec) concluirCom(modo, texto, resultado string) error {
 	ctx, cancel := e.cauda()
 	defer cancel()
 	enviados, err := e.enviar(ctx, texto)
-	resultado := ResultadoOK
 	if err != nil {
 		// Não reenvia: a escrita, se houve, já está no sistema (specs/03 F1).
 		resultado = ResultadoErroEnvio
@@ -592,8 +619,9 @@ func (e *turnoExec) registrar(modo, resultado string) error {
 		Resultado:  resultado, Escalou: e.escalou,
 	}
 	if e.modelo != "" {
-		t.CustoMicroUSD = llm.Custo(e.modelo, e.tin, e.tout)
+		t.CustoMicroUSD = llm.Custo(e.modelo, e.tin-e.tinTransc, e.tout-e.toutTransc)
 	}
+	t.CustoMicroUSD += e.custoTranscricao
 	if err := e.m.Store.RegistrarTurno(e.fim, t); err != nil {
 		e.log.Error("turno_nao_registrado", "erro", err.Error())
 		return err

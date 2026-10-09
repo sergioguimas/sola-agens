@@ -33,6 +33,9 @@ type Conjunto struct {
 }
 
 // Fabrica monta um Conjunto a partir de agentes/*.yaml e das OpenAPIs.
+// TimeoutMidia é o mínimo para baixar mídia (o Eliza espera até 15 s pela Evolution).
+const TimeoutMidia = 30 * time.Second
+
 type Fabrica struct {
 	Dir     string
 	Lookup  func(string) (string, bool) // os.LookupEnv
@@ -80,6 +83,7 @@ func (f *Fabrica) Montar(ctx context.Context) (*Conjunto, error) {
 		if err != nil {
 			return nil, fmt.Errorf("agente %s: %w", reg.ID, err)
 		}
+		sist.ComMidia(conector.NovoHTTP(conector.ConfigDe(&reg), max(f.Timeout, TimeoutMidia)))
 		modelo := reg.Modelo
 		if modelo == "" {
 			modelo = f.Modelo
@@ -187,9 +191,11 @@ func (s *Servico) Mensagem(_ context.Context, ag agentes.Agente, e entrada.Entra
 		return err
 	}
 	lim := rt.Registro.Limites
+	msg := e.Mensagem
+	msg.Ticket = e.Ticket // cada mensagem guarda o próprio ticket (baixarMidia, F5)
 	return traduz(s.Deb.Adicionar(conversaDe(ag, e),
 		time.Duration(lim.RajadaMs)*time.Millisecond, time.Duration(lim.RajadaMaxMs)*time.Millisecond,
-		e.Mensagem, e.Ticket, e.NomeExibicao))
+		msg, e.Ticket, e.NomeExibicao))
 }
 
 // DeMim descarrega a rajada aberta da conversa e só então entra na fila, para
