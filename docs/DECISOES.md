@@ -4,7 +4,8 @@
 > sistema da Sola, consumindo a **OpenAPI** que o próprio sistema publica. Não é um produto
 > comercial de chatbot.
 > **Status:** decidido; modelo de documentação montado a partir do Smaug (09/10). Rodada 2 (09/10) fechou A1–A8 e
-> M1–M4 do CONTRATO §10 (revendo E1, E3 e E4 abaixo). Rodada 3 fechou B1–B4. Próximo passo: preencher specs, plano e aceite.
+> M1–M4 do CONTRATO §10 (revendo E1, E3 e E4 abaixo). Rodada 3 fechou B1–B4. Specs, plano e aceite
+> preenchidos (09/10); decisões de especificação S1–S8 em specs/05 §9.
 > **Rodada de planejamento:** 2026-10-09, com o Sérgio. Antecedentes:
 > `Eliza/docs/ANALISE_ATENDENTE.md` e `Eliza/docs/CHATBOT.md` (decisões E1–E6).
 

@@ -1,8 +1,9 @@
 # Sola Agens — atendente da Sola
 
 **Status:** modelo de documentação montado (09/10/2026) a partir do Smaug; **sem código**. Todas as
-decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Próximo passo:
-preencher specs, plano de build e aceite.
+decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Specs, plano de
+build e aceite preenchidos. Próximo passo: fase 1 do [PLANO-DE-BUILD](PLANO-DE-BUILD.md) e, em
+paralelo, o contrato do PR do Eliza ([specs/04 §6](specs/04-integracoes.md#6-o-que-o-eliza-precisa-mudar)).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:

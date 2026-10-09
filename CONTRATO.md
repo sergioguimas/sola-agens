@@ -47,12 +47,12 @@ Documentos que detalham este contrato:
 
 | Regra | Valor | Por quê |
 |---|---|---|
-| Origem | `POST /v1/mensagens` com `X-Eliza-Assinatura` válida e `X-Eliza-Timestamp` recente (§5) | só o sistema dono do agente encaminha |
+| Origem | `POST /a/{agente}/v1/mensagens` (specs/04 §1) com `X-Eliza-Assinatura` válida e `X-Eliza-Timestamp` recente (§5) | só o sistema dono do agente encaminha |
 | Agente | resolvido pela origem assinada (segredo por agente), nunca pelo corpo | um sistema não fala em nome de outro |
-| `deMim` | não vai ao agente; **pausa** a conversa (intervenção humana) | o dono respondeu pelo celular |
-| Tipo | texto → agente; áudio → roteador (§3, herdado do Smaug); imagem, documento, vídeo → resposta fixa na v1, mapeados em `anexos` (A8); `nao_suportado` → resposta fixa | |
-| Idempotência | `mensagemId` já processado → `202` sem reprocessar | o sistema não retenta, mas a Evolution sim |
-| Rajada | mensagens do mesmo contato em ~3 s viram um turno só | "oi" / "queria marcar" / "amanhã" |
+| `deMim` | não vai ao agente; eco da própria resposta é ignorado; o resto **pausa** a conversa por 12 h (configurável) | o dono respondeu pelo celular |
+| Tipo | texto → agente; áudio → transcrito e tratado como texto (specs/02 §8); imagem, documento, vídeo → resposta fixa na v1, mapeados em `anexos` (A8); `nao_suportado` → resposta fixa | |
+| Idempotência | `mensagemId` já processado → `202` sem reprocessar (qualquer outro código faria o Eliza cair no fallback) | o sistema não retenta, mas a Evolution sim |
+| Rajada | mensagens do mesmo contato em ~3 s (teto 8 s) viram um turno só | "oi" / "queria marcar" / "amanhã" |
 | Ordem | uma conversa por vez, na ordem de chegada (fila por chat do Smaug) | |
 
 ## 3. Comportamento (v1 = F1, agente Eliza)
@@ -63,13 +63,14 @@ e manter o próprio cadastro; chamar um humano. Regras de negócio são do siste
 a mensagem de erro do sistema ao cliente, em linguagem natural.
 
 Identificação: telefone → nome → cadastro (§10, M2); o nome nunca dá acesso (B3). `ambiguo` escala (contrato 02 do Eliza).
-**A preencher na F1:** lista final de ferramentas e fastpath a partir do dicionário (M3).
+Ferramentas: [specs/02 §3](specs/02-ferramentas-e-prompt.md#3-ferramentas-da-f1-agente-eliza). Fastpath: "sim"/"cancelar" exatos com **um** agendamento aguardando confirmação ([specs/02 §6](specs/02-ferramentas-e-prompt.md#6-fastpath)).
 
 ## 4. Resposta — como o texto volta
 
 Herdado do Smaug: texto curto para WhatsApp, `*negrito*` como único markdown, mensagem longa dividida.
 Falha do LLM ou do sistema → resposta fixa ("não consegui agora, um atendente vai te responder") e
-escalonamento. **A preencher:** textos fixos.
+escalonamento. Textos fixos: dicionário do motor ([specs/02 §5](specs/02-ferramentas-e-prompt.md#5-dicionário-de-respostas-padrão-m3)),
+sobrescrito por sistema e tenant.
 
 ## 5. Segurança e privacidade
 
@@ -81,29 +82,32 @@ escalonamento. **A preencher:** textos fixos.
   credencial de banco ou de WhatsApp de sistema.
 - **LLM:** Gemini em **plano pago** (o gratuito pode usar o conteúdo).
 - **Retenção:** 90 dias de texto completo, depois só metadados; apagamento sob pedido do titular.
-- **Log:** sem texto de mensagem nem argumento de ferramenta no log contínuo (`LOG_DEBUG` pontual,
-  como no Smaug).
+- **Log:** sem texto de mensagem, transcrição, ticket nem argumento de ferramenta no log contínuo
+  (`AGENS_LOG_DEBUG` pontual, como no Smaug); contato aparece só como hash.
+- **Mídia:** nenhum arquivo é guardado; áudio é baixado em memória, transcrito e descartado.
 
 ## 6. Configuração
 
-Ver `.env.example`. Configuração **de agente** (persona, instruções, sistema, OpenAPI, segredos por
-referência de env, modelo): **em camadas** — padrão do motor → sistema → tenant (§10, A4; onde cada camada mora: B2).
+Ver `.env.example` e [specs/05 §6–§7](specs/05-arquitetura-go.md#6-registro-do-agente). No agens: o registro
+de cada sistema (`agentes/<id>.yaml`) e os padrões de fallback. Persona, tom, instruções, respostas e
+horas de pausa vêm do sistema, já combinadas com o tenant, a cada turno (§10, A4/B2; specs/01 §3).
 
 ## 7. Operação
 
-Container na VPS da Sola. **A decidir:** rede interna apenas (F1) ou rota pública pelo Traefik (A7).
-`/health`, log JSON (`slog`), métricas de custo por agente no log por turno.
+Container na VPS da Sola, só na rede Docker do Eliza na F1 (A7). `/health`, log JSON (`slog`), custo
+e tokens por turno na tabela `turnos` (consulta por agente/tenant/dia). Job diário de retenção.
+Apagamento por titular em `DELETE /admin/...` (specs/03 F10).
 
 ## 8. Critérios de aceite (F1)
 
-Preenchidos em [CHECKLIST-ACEITE.md](CHECKLIST-ACEITE.md) quando o contrato fechar. Base: bateria fixa
-de conversas do agente Eliza (marcar, remarcar, cancelar, confirmar, desconhecido, ambíguo, injeção de
-prompt, fora de escopo, sistema fora do ar, rajada, intervenção humana).
+[CHECKLIST-ACEITE.md](CHECKLIST-ACEITE.md): 24 conversas, 5 verificações de segurança e as medições
+(custo, latência, RAM). Depende do PR do Eliza ([specs/04 §6](specs/04-integracoes.md#6-o-que-o-eliza-precisa-mudar)).
 
 ## 9. Fora do escopo — backlog
 
 Canal web e modo anônimo (F2, site); asserção do motor e envio de arquivo (F3, Axios); confirmação
-antes de gravar (F4, SolaBridge); painel de configuração; API oficial do WhatsApp.
+antes de gravar (F4, SolaBridge); painel de configuração; API oficial do WhatsApp; comando para
+retomar conversa pausada; imagem e documento; réplicas do processo (B1); módulo de treinamento (§11).
 
 ## 10. Decisões da F1
 
