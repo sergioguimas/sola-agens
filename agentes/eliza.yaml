@@ -1,0 +1,36 @@
+id: eliza
+modo_identidade: encaminhado
+entrada:
+  segredo_env: ELIZA_ENCAMINHAMENTO_SECRET
+  header_assinatura: X-Eliza-Assinatura
+  header_timestamp: X-Eliza-Timestamp
+sistema:
+  base_url_env: ELIZA_BASE_URL
+  openapi_path: /api/v1/autoatendimento/openapi.json
+  token_env: ELIZA_AUTOATENDIMENTO_API_TOKEN
+  header_ticket: X-Autoatendimento-Ticket
+  headers_fixos:
+    X-Autoatendimento-Versao: "1"
+operacoes:            # operationId; as quatro primeiras não podem ter x-atendente
+  contexto: obterContexto
+  responder: enviarMensagem
+  escalar: escalarParaEquipe
+  midia: baixarMidia
+  confirmar: confirmarAgendamento   # fastpath
+  cancelar: cancelarAgendamento     # fastpath
+midia:
+  audio: processar
+  imagem: resposta_fixa
+  documento: resposta_fixa
+  video: resposta_fixa
+  figurinha: resposta_fixa
+  outro: resposta_fixa
+limites:
+  max_iter: 8
+  rajada_ms: 3000
+  rajada_max_ms: 8000
+  memoria_mensagens: 20
+  memoria_horas: 24
+  audio_max_s: 120
+  turno_timeout_s: 90
+# modelo: gemini-2.5-flash   # opcional; padrão AGENS_MODEL
