@@ -1,9 +1,8 @@
 # Sola Agens — atendente da Sola
 
-**Status:** modelo de documentação montado (09/10/2026) a partir do Smaug; **sem código**. Todas as
-decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Specs, plano de
-build e aceite preenchidos. Próximo passo: fase 1 do [PLANO-DE-BUILD](PLANO-DE-BUILD.md) e, em
-paralelo, o contrato do PR do Eliza ([specs/04 §6](specs/04-integracoes.md#6-o-que-o-eliza-precisa-mudar)).
+**Status:** em construção (09/10/2026). Todas as
+decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fase 1 do build
+feita (esqueleto). Próximo passo: fase 2 (base). PR do Eliza codado (contrato 07, aceite pendente).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:
@@ -25,4 +24,12 @@ Estrutura, padrão de documentação e boa parte do código vêm do Smaug
 
 ## Decisões durante o build
 
-(vazio)
+**Fase 1 (09/10/2026, commit c69da42)**
+
+- Tipos `Mensagem`/`Anexo` em `internal/mensagem` (sem ciclo entre `entrada` e `agent`); `Anexo.TipoOriginal` guarda o tipo do canal quando vira `outro`.
+- `AGENS_LISTEN` aceita `0.0.0.0` (diferente do Smaug): o agens roda em container, e a exposição é controlada pela rede Docker (A7).
+- `Agente` guarda segredo, URL base e token em campos não exportados; `String()`/`LogValue()` mostram só id e modo.
+- Registro lido com `KnownFields(true)`: campo desconhecido no yaml é erro. `operacoes.confirmar`/`cancelar` opcionais (só o fastpath usa); as quatro do motor obrigatórias. Limite `0` = padrão; negativo ou `rajada_max_ms < rajada_ms` = erro.
+- `AGENS_PRECO_*` lido como mapa bruto em `Config.Precos`; o parse fica para a fase 3 (`llm/preco.go`).
+- Erro do handler que não seja `ErrFilaCheia` → 500. Dedupe entra pela `Server.Dedupe` (fase 2).
+- Teste de fumaça: binário real, `/health` ok, POST assinado → 202, assinatura adulterada → 401, log sem telefone/texto/segredo.
