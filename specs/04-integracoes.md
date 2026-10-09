@@ -80,8 +80,8 @@ Sem rota no Traefik na F1. Saída para a internet só para o Gemini (e o Groq, s
 
 ## 6. O que o Eliza precisa mudar
 
-Um PR no Eliza, com contrato próprio em `Eliza/docs/contratos/autoatendimento/` (o agens não define o
-Eliza; isto é o pedido). Ordem: os itens 1–3 bloqueiam a fase 6 (aceite); o 4 bloqueia só o aceite de
+Um PR no Eliza. **Contrato escrito:** `Eliza/docs/contratos/autoatendimento/07-ajustes-sola-agens.md`
+(09/10) — ele manda na forma; a tabela abaixo é o resumo do pedido. Ordem: os itens 1–3 bloqueiam a fase 6 (aceite); o 4 bloqueia só o aceite de
 áudio; o 5 é necessário para a pausa e as respostas personalizadas.
 
 | # | Mudança | Onde | Por quê |
@@ -89,9 +89,8 @@ Eliza; isto é o pedido). Ordem: os itens 1–3 bloqueiam a fase 6 (aceite); o 4
 | 1 | `x-atendente: true` nas operações da 02 §3 (e em nenhuma operação do motor) | `web/lib/openapi/autoatendimento.ts` | A6 |
 | 2 | `GET /cadastro/nome?nome=` → `{ existe: boolean }`: busca normalizada (sem acento, minúsculas, espaços colapsados) por nome completo **exato** na org do ticket; não devolve id nem dado; limite próprio (`aa-nome`, 10/h) | rota + `lib/domain` + Zod + OpenAPI (`verificarNomeCadastrado`, `x-atendente: true`) | B3 |
 | 3 | Motivos `numero_novo` e `falha_tecnica` no enum do `EscalonarBody` (o texto ao humano mostra o motivo) | `contracts/autoatendimento/mensagens.ts` | B3, F2 |
-| 4 | **Áudio:** `conteudo` ganha `{ tipo: "audio", duracaoS, mime, tamanho, encaminhado }` (hoje vira `nao_suportado`); rota `GET /mensagens/{mensagemId}/midia` que só aceita o `mensagemId` **do próprio ticket** (`ticket.msg`), baixa da Evolution (`getBase64FromMediaMessage`) e devolve os bytes com `Content-Type`; limite 16 MB | `encaminhar.ts`, `mensagens.ts`, rota nova, `gateway.ts` | A8 — o agens não tem a chave da Evolution (C3 do Eliza) |
-| 5 | Campo `atendente` no `Contexto`: `{ persona, tom, pausaHumanaHoras, respostas: {…}, palavras: { confirmar[], cancelar[] } }`, todos anuláveis, já combinados (padrão do Eliza + org); colunas novas em `autoatendimento_config` (`atendente_persona`, `atendente_tom`, `pausa_humana_horas`, `atendente_respostas jsonb` validado por Zod) | migration + `contexto.ts` + 01-configuracao | B2, M1, M3, M4 |
+| 4 | **Áudio:** `conteudo` ganha `{ tipo: "audio", duracaoS, mime, tamanho, encaminhado }` (hoje vira `nao_suportado`); rota `GET /mensagens/{mensagemId}/midia` que só aceita o `mensagemId` **do próprio ticket** (`ticket.msg`), baixa da Evolution (`getBase64FromMediaMessage`) e devolve `{ mime, tamanho, base64 }` no envelope; acima de 16 MB, `MEDIA_TOO_LARGE` | `encaminhar.ts`, `mensagens.ts`, rota nova, `gateway.ts` | A8 — o agens não tem a chave da Evolution (C3 do Eliza) |
+| 5 | Campo `atendente` no `Contexto`: `{ persona, tom, pausaHumanaHoras, respostas: {…}, palavras: { confirmar[], cancelar[] } }`, todos anuláveis, já combinados (padrão do Eliza + org); colunas tipadas novas em `autoatendimento_config` (persona, tom, horas de pausa, uma coluna por resposta, `text[]` para as palavras — sem jsonb, C12 do 07) | migration + `contexto.ts` + 01-configuracao | B2, M1, M3, M4 |
 
-Pontos para o contrato do Eliza decidir (não são do agens): se `respostas` vira `jsonb` (C6 do Eliza
-recusou jsonb genérico — aqui é um objeto com Zod fechado) e se o limite `aa-nome` é suficiente
-contra enumeração de nomes.
+Decididos no 07: colunas tipadas em vez de jsonb (C12), limite `aa-nome` 10/h e busca só para
+`desconhecido` (C9), versão do contrato continua `1` (C8).

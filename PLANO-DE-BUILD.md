@@ -57,8 +57,8 @@ Comece pela fase 1.
 ### 3.1 Trilha paralela: PR do Eliza
 
 As mudanças de [specs/04 §6](specs/04-integracoes.md#6-o-que-o-eliza-precisa-mudar) são um trabalho
-**no repo do Eliza**, com contrato próprio em `Eliza/docs/contratos/autoatendimento/` (esteira de
-contratos do Eliza: contrato Opus → código Sonnet → revisão Opus). Pode correr junto das fases 1–5 do
+**no repo do Eliza**, contratado em `Eliza/docs/contratos/autoatendimento/07-ajustes-sola-agens.md`
+(esteira de contratos do Eliza: contrato Opus → código Sonnet → revisão Opus). Pode correr junto das fases 1–5 do
 agens. Dependências:
 
 | Item do Eliza | Bloqueia |
