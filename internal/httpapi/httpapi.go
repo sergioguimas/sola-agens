@@ -13,6 +13,7 @@ import (
 
 	"sola-agens/internal/agentes"
 	"sola-agens/internal/entrada"
+	"sola-agens/internal/store"
 )
 
 // MaxCorpo é o limite do corpo aceito (F1 passo 2).
@@ -31,9 +32,18 @@ type Handler interface {
 	DeMim(ctx context.Context, ag agentes.Agente, e entrada.Entrada) error
 }
 
-// DedupeFunc é o ponto de extensão do passo 6 (fase 2): devolve true se a
-// mensagem já tinha sido vista. Nil = sem deduplicação.
-type DedupeFunc func(ctx context.Context, agente, mensagemID string) (duplicado bool, err error)
+// Eventos é o pedaço do Store que o dedupe usa (F1 passos 6 e 9).
+// DECISÃO: interface pequena local no lugar da DedupeFunc, para o handler poder
+// desfazer a marca (DesmarcarEvento) sem um segundo callback.
+type Eventos interface {
+	MarcarEvento(ctx context.Context, agente, mensagemID string) (novo bool, err error)
+	DesmarcarEvento(ctx context.Context, agente, mensagemID string) error
+}
+
+// Apagador é o pedaço do Store que a rota de apagamento usa (F10).
+type Apagador interface {
+	ApagarContato(ctx context.Context, id store.ConversaID) error
+}
 
 // Server monta as rotas.
 type Server struct {
@@ -41,8 +51,12 @@ type Server struct {
 	handler Handler
 	log     *slog.Logger
 
-	// Dedupe é opcional; ver DedupeFunc.
-	Dedupe DedupeFunc
+	// Eventos é opcional: nil = sem deduplicação.
+	Eventos Eventos
+	// AdminToken e Apagador ligam DELETE /admin/agentes/{a}/tenants/{t}/contatos/{c};
+	// token vazio (ou Apagador nil) = rota não registrada.
+	AdminToken string
+	Apagador   Apagador
 	// Agora existe para os testes fixarem o relógio.
 	Agora func() time.Time
 }
@@ -64,6 +78,9 @@ func (s *Server) Routes() http.Handler {
 		io.WriteString(w, "ok")
 	})
 	mux.HandleFunc("POST /a/{agente}/v1/mensagens", s.mensagens)
+	if s.AdminToken != "" && s.Apagador != nil {
+		mux.HandleFunc("DELETE /admin/agentes/{a}/tenants/{t}/contatos/{c}", s.apagarContato)
+	}
 	return mux
 }
 
@@ -127,16 +144,16 @@ func (s *Server) mensagens(w http.ResponseWriter, r *http.Request) {
 	}
 	log = log.With("tenant", e.Tenant, "conversa", e.Conversa())
 
-	// 6. dedupe — FASE 2: MarcarEvento(agente, mensagemId); já existia → 202
-	// com log "duplicado" (202, não 204: o Eliza trata outro código como falha).
-	if s.Dedupe != nil {
-		dup, err := s.Dedupe(r.Context(), id, e.Mensagem.ID)
+	// 6. dedupe: MarcarEvento(agente, mensagemId); já existia → 202 com log
+	// "duplicado" (202, não 204: o Eliza trata outro código como falha).
+	if s.Eventos != nil {
+		novo, err := s.Eventos.MarcarEvento(r.Context(), id, e.Mensagem.ID)
 		if err != nil {
 			log.Error("falha no dedupe", "erro", err.Error())
 			http.Error(w, "erro interno", http.StatusInternalServerError)
 			return
 		}
-		if dup {
+		if !novo {
 			log.Info("duplicado")
 			aceito(w)
 			return
@@ -163,8 +180,14 @@ func (s *Server) mensagens(w http.ResponseWriter, r *http.Request) {
 func (s *Server) entregar(w http.ResponseWriter, r *http.Request, log *slog.Logger,
 	fn func(context.Context, agentes.Agente, entrada.Entrada) error, ag agentes.Agente, e entrada.Entrada) {
 	if err := fn(r.Context(), ag, e); err != nil {
+		// DECISÃO: qualquer falha de entrega (não só fila cheia) desfaz a marca,
+		// senão o reenvio do sistema viraria "duplicado" e a mensagem se perderia.
+		if s.Eventos != nil {
+			if derr := s.Eventos.DesmarcarEvento(r.Context(), ag.ID, e.Mensagem.ID); derr != nil {
+				log.Error("falha ao desmarcar evento", "erro", derr.Error())
+			}
+		}
 		if errors.Is(err, ErrFilaCheia) {
-			// Fase 2: DesmarcarEvento aqui, para o reenvio não virar duplicado.
 			log.Warn("fila cheia")
 			http.Error(w, "fila cheia", http.StatusServiceUnavailable)
 			return

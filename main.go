@@ -1,5 +1,6 @@
 // Comando sola-agens: motor de atendimento por LLM da Sola (specs/05).
-// Fase 1: esqueleto — config, agentes e HTTP; o handler de mensagens é um no-op.
+// Fases 1–2: config, agentes, HTTP, store (dedupe, apagamento) e manutenção; o
+// handler de mensagens ainda é um no-op.
 package main
 
 import (
@@ -9,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,6 +21,8 @@ import (
 	"sola-agens/internal/config"
 	"sola-agens/internal/entrada"
 	"sola-agens/internal/httpapi"
+	"sola-agens/internal/manutencao"
+	"sola-agens/internal/store/sqlite"
 )
 
 // noopHandler só registra a entrada; o worker real entra nas fases seguintes.
@@ -77,7 +82,15 @@ func run(log *slog.Logger) error {
 		log.Info("agente carregado", "agente", a)
 	}
 
+	st, err := sqlite.Open(filepath.Join(cfg.DataDir, "agens.db"), time.Now)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+
 	api := httpapi.New(ags, noopHandler{log: log}, log)
+	api.Eventos = st
+	api.AdminToken, api.Apagador = cfg.AdminToken, st
 	srv := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           api.Routes(),
@@ -89,12 +102,22 @@ func run(log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Manutenção (F9): roda ao subir e a cada minuto até o ctx do processo acabar.
+	var manut sync.WaitGroup
+	manut.Add(1)
+	go func() {
+		defer manut.Done()
+		manutencao.New(st, time.Now, cfg.Loc, cfg.ManutencaoHora, cfg.RetencaoDias, log).Start(ctx)
+	}()
+	defer manut.Wait()
+
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 	log.Info("sola-agens no ar", "listen", cfg.Listen)
 
 	select {
 	case err := <-errCh:
+		stop() // para a manutenção também
 		return err
 	case <-ctx.Done():
 	}

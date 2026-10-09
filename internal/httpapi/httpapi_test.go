@@ -20,6 +20,7 @@ import (
 
 	"sola-agens/internal/agentes"
 	"sola-agens/internal/entrada"
+	"sola-agens/internal/mensagem"
 )
 
 const (
@@ -188,16 +189,6 @@ func TestFilaCheiaEErroDoHandler(t *testing.T) {
 	}
 }
 
-func TestDedupe(t *testing.T) {
-	s, h, _ := montar(t)
-	s.Dedupe = func(context.Context, string, string) (bool, error) { return true, nil }
-	ok := corpoJSON(false, true)
-	rec := enviar(s, rota, ok, agora.Unix(), assinar(ok, agora.Unix()))
-	if rec.Code != 202 || len(h.msgs) != 0 {
-		t.Errorf("duplicado: status=%d msgs=%d", rec.Code, len(h.msgs))
-	}
-}
-
 func TestLogsSemDadosSensiveis(t *testing.T) {
 	ts := agora.Unix()
 	s, _, buf := montar(t)
@@ -219,7 +210,7 @@ func TestLogsSemDadosSensiveis(t *testing.T) {
 			t.Errorf("log contém %q", proibido)
 		}
 	}
-	if !strings.Contains(log, entrada.HashContato(telefone)) {
+	if !strings.Contains(log, mensagem.HashContato(telefone)) {
 		t.Error("log deveria ter o hash da conversa")
 	}
 }

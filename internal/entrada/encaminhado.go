@@ -78,13 +78,7 @@ type Entrada struct {
 
 // Conversa devolve sha256(contato) em hex, 12 primeiros caracteres: o único
 // identificador do contato permitido em log (specs/05 §8).
-func (e Entrada) Conversa() string { return HashContato(e.Contato) }
-
-// HashContato é sha256(contato)[:12] em hex.
-func HashContato(contato string) string {
-	h := sha256.Sum256([]byte(contato))
-	return hex.EncodeToString(h[:])[:12]
-}
+func (e Entrada) Conversa() string { return mensagem.HashContato(e.Contato) }
 
 // VerificarAssinatura confere hex(HMAC-SHA256(segredo, timestamp+"."+corpo)).
 // O timestamp é epoch em segundos; tolerância de JanelaTimestamp para os dois lados.

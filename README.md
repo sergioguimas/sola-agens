@@ -1,8 +1,8 @@
 # Sola Agens — atendente da Sola
 
 **Status:** em construção (09/10/2026). Todas as
-decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fase 1 do build
-feita (esqueleto). Próximo passo: fase 2 (base). PR do Eliza codado (contrato 07, aceite pendente).
+decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–2 do build
+feitas (esqueleto, base). Próximo passo: fase 3 (OpenAPI, conector, LLM). PR do Eliza codado (contrato 07, aceite pendente).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:
@@ -33,3 +33,14 @@ Estrutura, padrão de documentação e boa parte do código vêm do Smaug
 - `AGENS_PRECO_*` lido como mapa bruto em `Config.Precos`; o parse fica para a fase 3 (`llm/preco.go`).
 - Erro do handler que não seja `ErrFilaCheia` → 500. Dedupe entra pela `Server.Dedupe` (fase 2).
 - Teste de fumaça: binário real, `/health` ok, POST assinado → 202, assinatura adulterada → 401, log sem telefone/texto/segredo.
+
+**Fase 2 (09/10/2026)**
+
+- Dedupe por interface local `Eventos` no `httpapi`. **Qualquer** falha de entrega (não só fila cheia) desmarca o evento, para o reenvio do Eliza não virar "duplicado" e a mensagem se perder.
+- SQLite com conexão única (`SetMaxOpenConns(1)`) e `_txlock=immediate`, como no Smaug. Banco em `AGENS_DATA_DIR/agens.db`.
+- `Pausar` e `GuardarConfig` criam a conversa se não existir. Chave vazia, papel ou modo inválidos são erro.
+- Anexos gravados como JSON sem `Ref`; `ExpurgarTexto` zera só `conteudo` (anexos não têm dado sensível sem `Ref`).
+- Rota admin confere o token antes do agente (token errado = 401 mesmo com agente desconhecido).
+- Funções de hash do contato em `internal/mensagem` (revisão Opus: `store` não importa `entrada`).
+- Manutenção: catch-up de hoje, ontem e anteontem; no primeiro boot roda os três dias (vazios).
+- Teste de fumaça: base criada, mensagem repetida → 202 com log "duplicado", apagamento com token errado → 401, certo → 204.
