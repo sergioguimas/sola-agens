@@ -3,7 +3,7 @@
 > **O que é:** plataforma interna da Sola para colocar um atendente (bot com LLM) em qualquer
 > sistema da Sola, consumindo a **OpenAPI** que o próprio sistema publica. Não é um produto
 > comercial de chatbot.
-> **Status:** decidido, sem código. Próximo passo: levantamento do motor do Smaug e contrato da F1.
+> **Status:** decidido; modelo de documentação montado a partir do Smaug (09/10). Próximo passo: decisões abertas do CONTRATO §10.
 > **Rodada de planejamento:** 2026-10-09, com o Sérgio. Antecedentes:
 > `Eliza/docs/ANALISE_ATENDENTE.md` e `Eliza/docs/CHATBOT.md` (decisões E1–E6).
 
@@ -65,7 +65,7 @@ de OpenAPI próprio (ex.: Scribe).
 | P2 | **Ferramentas lidas da OpenAPI** de cada sistema, com o contrato de integração acima | Adaptador em código por sistema | Stacks diferentes (Next, Laravel, estático); encaixar sistema novo vira configuração. Adaptador em código fica só como saída para legado |
 | P3 | **Três modos de identidade**: encaminhado (Eliza), asserção do motor (padrão dos próximos), anônimo (site) | Um modo só | O Eliza já está pronto no encaminhado; os outros não precisam lidar com WhatsApp; o site não tem login |
 | P4 | **Go**, partindo do motor do Smaug | Node/TS, Python | Motor e gateway já existem em Go; binário único de ~20–40 MB; a linguagem é indiferente para quem integra, porque o contrato é OpenAPI + HTTP |
-| P5 | Nome **`sola-agens`**, em `Projetos/SolaSoftware/sola-agens`, repositório próprio | Dentro do Eliza | É de todos os sistemas da Sola |
+| P5 | Nome **`sola-agens`**, em `Projetos/sola-agens`, repositório próprio (como os outros produtos da Sola) | Dentro do Eliza | É de todos os sistemas da Sola |
 | P6 | Ordem dos agentes: **Eliza → Site → Axios Calc → SolaBridge** | Eliza → Axios → Bridge → Site | Decisão do Sérgio |
 | E6 | A Evolution do Eliza roda **na VPS da Sola**, sem relação com a Geti | — | Confirmado pelo Sérgio em 2026-10-09 |
 
