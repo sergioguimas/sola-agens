@@ -98,16 +98,16 @@ type turnoExec struct {
 	fpTexto  string // texto para o fastpath: mensagem única de texto ou de áudio transcrito
 
 	// Acumulado do turno (store.Turno).
-	modelo  string
-	iter    int
-	ferr    []store.FerramentaLog
-	tin     int
-	tout    int
+	modelo string
+	iter   int
+	ferr   []store.FerramentaLog
+	tin    int
+	tout   int
 	// transcrição: tokens já contados em tin/tout, custo calculado com o modelo dela
 	tinTransc, toutTransc int
 	custoTranscricao      int64
-	escalou bool
-	escrita bool // houve escrita (método ≠ GET) com sucesso
+	escalou               bool
+	escrita               bool // houve escrita (método ≠ GET) com sucesso
 }
 
 // Run executa o turno: F1 passos 10–18 e F2 (specs/03). Erros de regra e falhas

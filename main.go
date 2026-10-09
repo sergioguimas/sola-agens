@@ -1,6 +1,7 @@
 // Comando sola-agens: motor de atendimento por LLM da Sola (specs/05).
-// Fases 1–5: config, agentes, OpenAPI → ferramentas, HTTP, store (dedupe,
-// apagamento), manutenção e o agente (debounce → fila por conversa → LLM) e áudio (transcrição).
+// Fases 1–6: config, agentes, OpenAPI → ferramentas, HTTP, store (dedupe,
+// apagamento), manutenção, o agente (debounce → fila por conversa → LLM), áudio
+// (transcrição) e o subcomando `health` do container.
 package main
 
 import (
@@ -30,6 +31,10 @@ import (
 )
 
 func main() {
+	// `sola-agens health`: HEALTHCHECK do container (sem shell nem curl na imagem).
+	if len(os.Args) > 1 && os.Args[1] == "health" {
+		os.Exit(saude())
+	}
 	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if err := run(log); err != nil {
 		log.Error("encerrado com erro", "erro", err.Error())

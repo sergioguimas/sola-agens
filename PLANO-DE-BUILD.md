@@ -52,7 +52,7 @@ Comece pela fase 1.
 | 3 | OpenAPI, conector e clientes | `openapi` (golden do Eliza), `conector`, `sistema`, `llm` copiado do Smaug + `preco.go` | golden spec → ferramentas; conector e sistema com `httptest`; golden do request Gemini |
 | 4 | Agente | `agent` (prompt, loop, dicionário, fastpath, `chamar_humano`), `debounce`, `worker` copiado, ligação `httpapi → debounce → worker → agent → sistema`; pausa e eco | testes do `agent` e ponta a ponta com fakes (specs/05 §5) |
 | 5 | Áudio | `transcricao` copiado, `agent/audio.go`, normalização de `conteudo.tipo=audio`, `sistema.BaixarMidia` | ponta a ponta com fakes: áudio curto → transcrição fake → turno normal; áudio longo → resposta fixa sem download |
-| 6 | Fechamento | `README.md` (operação + decisões do build), `Dockerfile` final, `avaliacao/` (bateria em YAML + runner), `go test -race`, deploy em dev, aceite | CHECKLIST-ACEITE preenchido |
+| 6 | Fechamento | `README.md` (operação + decisões do build), `Dockerfile` final, `avaliacao/` (bateria em YAML de modelo e prompt, Eliza simulado + Gemini real), `health` do container, `go test -race`, deploy em dev, aceite | CHECKLIST-ACEITE preenchido |
 
 ### 3.1 Trilha paralela: PR do Eliza
 
@@ -193,9 +193,12 @@ contra o Eliza de dev e imprime o resultado de cada cenário. go test -race ./..
 ## 6. Depois do build
 
 1. Deploy em container na VPS da Sola, rede do Eliza, sem rota pública (A7). `.env` real com a chave
-   do Gemini pago.
+   do Gemini pago. Passo a passo (build, volume `/data`, serviço do compose, rede): README, seções
+   [Container](README.md#container) e [Configurar](README.md#configurar).
 2. No Eliza: `ATENDENTE_URL` e `ATENDENTE_ENCAMINHAMENTO_SECRET`; `autoatendimento_config` ativa só
-   para a org de teste (`admin`).
-3. Aceite manual (CHECKLIST-ACEITE) e medições (custo, latência, RAM). Anotar no README.
+   para a org de teste (`admin`). Valores e ordem: README, [Ligar ao Eliza](README.md#ligar-ao-eliza).
+3. Antes do aceite: `go run ./avaliacao` (modelo e prompt; README, [Avaliação](README.md#avaliação-do-modelo-e-do-prompt)).
+   Aceite manual (CHECKLIST-ACEITE) e medições (custo, latência, RAM; consultas em
+   [Custos](README.md#custos)). Anotar no README.
 4. Só depois: ligar para uma org real, acompanhando o log de turnos na primeira semana.
 5. Backlog (CONTRATO §9) e o módulo de treinamento (§11, rediscutir) vão para `ROADMAP.md`.

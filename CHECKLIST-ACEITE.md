@@ -1,8 +1,12 @@
 # Checklist de aceite — Sola Agens, F1 (agente Eliza)
 
+> Os cenários que dependem do **modelo** (1–15, 23 e 25 — este último: nome de perfil malicioso) estão em [`avaliacao/`](avaliacao/) (`go run ./avaliacao`, Eliza
+> simulado + Gemini real): rode **antes do aceite manual e a cada troca de modelo ou prompt**. Este aceite manual
+> cobre o que depende do Eliza real, do WhatsApp e da infraestrutura (pausa e eco, áudio e foto, reentrega, agens
+> fora do ar, segurança e medições).
+
 Marcar contra o Eliza de desenvolvimento, org `admin`, com o PR do Eliza (specs/04 §6) aplicado e um
-celular de teste no papel do cliente. Os cenários 1–20 também ficam em `avaliacao/` para rodar a cada
-troca de modelo ou prompt.
+celular de teste no papel do cliente.
 
 ## Bateria de conversas
 
