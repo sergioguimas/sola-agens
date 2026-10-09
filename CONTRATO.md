@@ -1,8 +1,8 @@
 # Sola Agens — contrato do serviço
 
 **Status:** modelo montado em 09/10/2026 a partir do Smaug (`redmilab/servicos/smaug`). Decisões de
-origem fechadas ([docs/DECISOES.md](docs/DECISOES.md)); A1–A8 e M1–M4 fechadas em 09/10;
-**B1–B4 abertas na §10** — o contrato só fecha depois delas.
+origem fechadas ([docs/DECISOES.md](docs/DECISOES.md)); todas as decisões da F1 fechadas
+em 09/10 (§10). Próximo passo: preencher specs 01–05, plano de build e aceite.
 **Papel:** plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer
 sistema da Sola. O motor lê a **OpenAPI** do sistema, transforma as operações liberadas em
 ferramentas e conversa com o cliente final pelo canal (WhatsApp; widget web na F2).
@@ -62,7 +62,7 @@ profissionais e horários; listar, criar, remarcar, cancelar e confirmar os pró
 e manter o próprio cadastro; chamar um humano. Regras de negócio são do sistema — o agens só repassa
 a mensagem de erro do sistema ao cliente, em linguagem natural.
 
-Identificação: telefone → nome → cadastro (§10, M2; B3). `ambiguo` escala (contrato 02 do Eliza).
+Identificação: telefone → nome → cadastro (§10, M2); o nome nunca dá acesso (B3). `ambiguo` escala (contrato 02 do Eliza).
 **A preencher na F1:** lista final de ferramentas e fastpath a partir do dicionário (M3).
 
 ## 4. Resposta — como o texto volta
@@ -124,16 +124,16 @@ antes de gravar (F4, SolaBridge); painel de configuração; API oficial do Whats
 | M3 | **Dicionário de respostas padrão** alimenta o fastpath e as respostas fixas. Ponto de partida: as listas de confirmação/cancelamento e as mensagens do webhook do Eliza (`web/app/api/webhooks/whatsapp/.../route.ts`, `web/lib/domain/mensagens.ts`) | Pode ser sobrescrito por sistema e por tenant (A4) |
 | M4 | **Textos e limites do motor são só fallback.** Persona, tom, vocabulário e respostas são personalizáveis por sistema e por tenant (no Eliza já existe o vocabulário por nicho em `organizacao.termos` do `/contexto`) | |
 
-### Abertas — precisam de resposta antes do contrato fechar
+### Fechadas — rodada 3 (09/10/2026, com o Sérgio)
 
-| # | Questão | Recomendação | Trade-off |
-|---|---|---|---|
-| B1 | **Mais de um processo do motor ao mesmo tempo** (réplicas). A1 já cobre vários tenants e vários sistemas num processo, e outra empresa (ex.: Geti) numa implantação separada com base própria | **Não agora.** SQLite com as interfaces da A1; Postgres + trava distribuída (advisory lock) quando um processo não der conta ou quando for preciso deploy sem pausa | Se as réplicas forem necessárias desde já: Postgres no dia 1, +1 container na VPS e a fila por conversa deixa de ser só em memória |
-| B2 | **Onde mora a configuração do sistema e do tenant** | **O sistema entrega a configuração já combinada (sistema + tenant) junto com o contexto do turno.** No Eliza: campo `atendente` novo no `GET /contexto` (persona, tom, horas de pausa, respostas padrão), lido de `autoatendimento_config`. O agens só aplica o próprio fallback por cima | Toca o Eliza (coluna + campo no contexto). A mensagem `deMim` não traz ticket, então a pausa usa a última configuração vista da conversa, ou 12 h |
-| B3 | **Busca por nome (M2)**: quem escreve "sou a Maria Silva" de outro número pode se passar pela Maria | **O nome nunca dá acesso.** Se o nome bate com um cadastro, o agens não mostra nem mexe nesse cadastro: escala para a equipe vincular o número novo e avisa o cliente. Endpoint novo no Eliza que responde só se existe ou não | Mais lento para quem trocou de número de verdade. Alternativa: segundo fator (data de nascimento, data do último atendimento), mais código e mais atrito |
-| B4 | **Módulo de treinamento** (decisão extra): o usuário do sistema conversa com um agens "zerado", que aprende os padrões dele | Ver §11 | |
+| # | Decisão | Consequência |
+|---|---|---|
+| B1 | **Sem réplicas agora.** Roda **SQLite**, mas com o caminho para Postgres preparado: acesso só pelas interfaces `Store`/`Trava`; schema em SQL portável (ids `TEXT`, instantes em `INTEGER` ms UTC, sem tipo ou função exclusiva do SQLite, sem `AUTOINCREMENT`); migrations numeradas que valem para os dois; uma bateria de testes de contrato do `Store` que roda contra qualquer implementação. Postgres e advisory lock não são implementados agora | Ligar réplicas depois = escrever `store/postgres` e rodar a mesma bateria, sem mudar o domínio |
+| B2 | **O sistema entrega a configuração já combinada (sistema + tenant) junto com o contexto do turno.** No Eliza: campo `atendente` novo no `GET /contexto` (persona, tom, horas de pausa, respostas padrão), lido de `autoatendimento_config`. O agens só aplica o próprio fallback por cima. A pausa (`deMim`, sem ticket) usa a última configuração vista da conversa, ou 12 h | Um PR no Eliza (coluna + campo no contexto + Zod/OpenAPI) |
+| B3 | **O nome nunca dá acesso.** Se o nome bate com um cadastro de outro telefone, o agens não mostra nem age sobre esse cadastro: escala para a equipe vincular o número novo e avisa o cliente. **`nomeExibicao` (o `pushName` do WhatsApp) não é fator de segurança**: é o nome que o próprio remetente põe no perfil e pode ser trocado por qualquer um. Uso permitido só como conveniência: se bate com o cadastro do *mesmo telefone*, o agens cumprimenta pelo nome; se o telefone não achou ninguém, pode perguntar "você é a Maria?" em vez de pedir o nome do zero — e a resposta continua sem dar acesso | Endpoint novo no Eliza que responde só se existe cadastro com aquele nome (sem dados). Quem trocou de número depende da equipe |
+| B4 | **Módulo de treinamento: aceito como direção, com ressalvas.** A §11 fica como rascunho; o desenho é rediscutido em detalhe quando o módulo entrar no plano (depois da F2) | Nada da F1 depende dele; a camada de tenant da A4 já é onde o perfil vai entrar |
 
-## 11. Módulo de treinamento (proposta — B4)
+## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 
 **O que é:** um modo de conversa em que o interlocutor é o **operador** (o usuário do sistema, ex.: a
 dona do salão no Eliza), não o cliente final. O agens conduz uma entrevista guiada e, ao fim, gera um

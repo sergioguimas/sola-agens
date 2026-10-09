@@ -1,6 +1,6 @@
 # 01 — Domínio e schema
 
-> **Esqueleto.** A1 e A4 fechadas (CONTRATO §10); o schema fecha depois de B1 e B2.
+> **Esqueleto.** A1 e A4 fechadas (CONTRATO §10); B1 e B2 também (SQL portável, ver §0).
 
 ## 0. Chaves (A1)
 
