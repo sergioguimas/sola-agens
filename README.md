@@ -1,7 +1,8 @@
 # Sola Agens — atendente da Sola
 
-**Status:** modelo de documentação montado (09/10/2026) a partir do Smaug; **sem código**. Próximo
-passo: fechar as decisões abertas do [CONTRATO §10](CONTRATO.md#10-decisões-abertas-da-f1).
+**Status:** modelo de documentação montado (09/10/2026) a partir do Smaug; **sem código**. A1–A8 e
+M1–M4 fechadas em 09/10. Próximo passo: B1–B4 do [CONTRATO §10](CONTRATO.md#10-decisões-da-f1)
+(inclui a proposta do módulo de treinamento, §11).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:

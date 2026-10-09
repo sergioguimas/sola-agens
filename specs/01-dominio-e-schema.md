@@ -1,6 +1,13 @@
 # 01 — Domínio e schema
 
-> **Esqueleto.** Preencher depois das decisões A1 (base) e A4 (config de agente) do CONTRATO §10.
+> **Esqueleto.** A1 e A4 fechadas (CONTRATO §10); o schema fecha depois de B1 e B2.
+
+## 0. Chaves (A1)
+
+Toda entidade com dado de conversa leva **`agente` + `tenant`**. `tenant` é a conta do cliente
+dentro do sistema (no Eliza, a `org` do ticket; no site, um tenant fixo `sola`). Nenhuma consulta
+atravessa tenants. Acesso à base pela interface `Store` e trava por conversa pela interface `Trava`:
+SQLite e trava em memória agora; Postgres e advisory lock quando houver réplicas (B1).
 
 ---
 
@@ -13,8 +20,16 @@ por dia), tokens do fastpath, limites de áudio.
 
 ## 2. Conversa e contato
 
-Chave da conversa = `agente + contato` (telefone no WhatsApp; sessão no widget). Estado: ativa ou
-**pausada** até um instante (intervenção humana, `deMim`).
+Chave da conversa = `agente + tenant + contato` (telefone no WhatsApp; sessão no widget). Estado:
+ativa ou **pausada** até um instante (intervenção humana, `deMim`): 12 h por padrão, configurável
+por sistema; cada nova mensagem `deMim` reinicia o prazo (M1).
+
+## 2.1 Mensagem e mídia (A8)
+
+Mensagem = texto + `anexos[]`, cada anexo com `tipo` (`audio` | `imagem` | `documento` | `video` |
+`figurinha`), `mime`, `tamanho` e `ref` (identificador no canal — o agens não baixa nem guarda o
+arquivo). Política de mídia por agente: por tipo, `processar` (v1: só `audio`, via transcrição) ou
+`resposta_fixa`. Ligar imagem depois é mudar a política, não o schema.
 
 ## 3. Memória
 

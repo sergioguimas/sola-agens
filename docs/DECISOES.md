@@ -3,7 +3,8 @@
 > **O que é:** plataforma interna da Sola para colocar um atendente (bot com LLM) em qualquer
 > sistema da Sola, consumindo a **OpenAPI** que o próprio sistema publica. Não é um produto
 > comercial de chatbot.
-> **Status:** decidido; modelo de documentação montado a partir do Smaug (09/10). Próximo passo: decisões abertas do CONTRATO §10.
+> **Status:** decidido; modelo de documentação montado a partir do Smaug (09/10). Rodada 2 (09/10) fechou A1–A8 e
+> M1–M4 do CONTRATO §10 (revendo E1, E3 e E4 abaixo). Próximo passo: B1–B4 do CONTRATO §10.
 > **Rodada de planejamento:** 2026-10-09, com o Sérgio. Antecedentes:
 > `Eliza/docs/ANALISE_ATENDENTE.md` e `Eliza/docs/CHATBOT.md` (decisões E1–E6).
 
@@ -69,11 +70,16 @@ de OpenAPI próprio (ex.: Scribe).
 | P6 | Ordem dos agentes: **Eliza → Site → Axios Calc → SolaBridge** | Eliza → Axios → Bridge → Site | Decisão do Sérgio |
 | E6 | A Evolution do Eliza roda **na VPS da Sola**, sem relação com a Geti | — | Confirmado pelo Sérgio em 2026-10-09 |
 
-Herdadas da análise do Eliza e válidas para a plataforma inteira:
+Herdadas da análise do Eliza e válidas para a plataforma inteira (com as revisões da rodada 2 no
+CONTRATO §10):
 
-- **LLM:** Gemini 2.5 Flash-Lite em **plano pago** como padrão (o gratuito pode usar o conteúdo),
-  escada para modelo maior só se a avaliação mostrar erro de ferramenta, raciocínio desligado,
-  **fastpath** determinístico na frente.
+- **LLM:** Gemini em **plano pago** (o gratuito pode usar o conteúdo), raciocínio desligado,
+  **fastpath** determinístico na frente. Modelo padrão: ~~2.5 Flash-Lite~~ **2.5 Flash** (A2 — o
+  Flash-Lite falhou depois de resultado de ferramenta no Smaug, 29/09).
+- **Base:** ~~schema `atendente` no Supabase do Eliza (E4)~~ **base própria do agens, multi-tenant
+  (`agente + tenant`) desde o dia 1** (A1).
+- **Conector:** ~~cliente gerado da OpenAPI (E1)~~ **OpenAPI lida em tempo de execução** (A5).
+- **Configuração:** em camadas, padrão do motor → sistema → tenant; cada sistema é dono da sua (A4, M4).
 - **Avaliação:** bateria fixa de conversas por agente antes de abrir para usuário real e a cada troca
   de modelo ou prompt.
 - **Retenção:** 90 dias de texto completo, depois só metadados; apagamento sob pedido do titular.

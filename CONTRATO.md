@@ -1,8 +1,8 @@
 # Sola Agens — contrato do serviço
 
 **Status:** modelo montado em 09/10/2026 a partir do Smaug (`redmilab/servicos/smaug`). Decisões de
-origem fechadas ([docs/DECISOES.md](docs/DECISOES.md)); **decisões abertas da F1 na §10** — o
-contrato só fecha depois delas.
+origem fechadas ([docs/DECISOES.md](docs/DECISOES.md)); A1–A8 e M1–M4 fechadas em 09/10;
+**B1–B4 abertas na §10** — o contrato só fecha depois delas.
 **Papel:** plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer
 sistema da Sola. O motor lê a **OpenAPI** do sistema, transforma as operações liberadas em
 ferramentas e conversa com o cliente final pelo canal (WhatsApp; widget web na F2).
@@ -50,7 +50,7 @@ Documentos que detalham este contrato:
 | Origem | `POST /v1/mensagens` com `X-Eliza-Assinatura` válida e `X-Eliza-Timestamp` recente (§5) | só o sistema dono do agente encaminha |
 | Agente | resolvido pela origem assinada (segredo por agente), nunca pelo corpo | um sistema não fala em nome de outro |
 | `deMim` | não vai ao agente; **pausa** a conversa (intervenção humana) | o dono respondeu pelo celular |
-| Tipo | texto → agente; áudio → roteador (§3, herdado do Smaug); imagem → **a decidir**; `nao_suportado` → resposta fixa | |
+| Tipo | texto → agente; áudio → roteador (§3, herdado do Smaug); imagem, documento, vídeo → resposta fixa na v1, mapeados em `anexos` (A8); `nao_suportado` → resposta fixa | |
 | Idempotência | `mensagemId` já processado → `202` sem reprocessar | o sistema não retenta, mas a Evolution sim |
 | Rajada | mensagens do mesmo contato em ~3 s viram um turno só | "oi" / "queria marcar" / "amanhã" |
 | Ordem | uma conversa por vez, na ordem de chegada (fila por chat do Smaug) | |
@@ -62,8 +62,8 @@ profissionais e horários; listar, criar, remarcar, cancelar e confirmar os pró
 e manter o próprio cadastro; chamar um humano. Regras de negócio são do sistema — o agens só repassa
 a mensagem de erro do sistema ao cliente, em linguagem natural.
 
-**A preencher na F1:** lista final de ferramentas, comportamento com cliente `desconhecido` e
-`ambiguo`, fastpath (quais respostas não passam pelo LLM).
+Identificação: telefone → nome → cadastro (§10, M2; B3). `ambiguo` escala (contrato 02 do Eliza).
+**A preencher na F1:** lista final de ferramentas e fastpath a partir do dicionário (M3).
 
 ## 4. Resposta — como o texto volta
 
@@ -87,7 +87,7 @@ escalonamento. **A preencher:** textos fixos.
 ## 6. Configuração
 
 Ver `.env.example`. Configuração **de agente** (persona, instruções, sistema, OpenAPI, segredos por
-referência de env, modelo): **forma a decidir** (§10, A4).
+referência de env, modelo): **em camadas** — padrão do motor → sistema → tenant (§10, A4; onde cada camada mora: B2).
 
 ## 7. Operação
 
@@ -105,15 +105,54 @@ prompt, fora de escopo, sistema fora do ar, rajada, intervenção humana).
 Canal web e modo anônimo (F2, site); asserção do motor e envio de arquivo (F3, Axios); confirmação
 antes de gravar (F4, SolaBridge); painel de configuração; API oficial do WhatsApp.
 
-## 10. Decisões abertas da F1
+## 10. Decisões da F1
+
+### Fechadas — rodada 2 (09/10/2026, com o Sérgio)
+
+| # | Decisão | Consequência |
+|---|---|---|
+| A1 | **Multi-tenant desde o dia 1.** Toda linha da base é chaveada por `agente + tenant` (tenant = a conta do cliente dentro do sistema, ex.: a org do Eliza). Base **própria do agens**, nunca no banco de um sistema. Acesso à base e trava por conversa **atrás de interface** (`Store`, `Trava`) | Mais de um cliente do Eliza e mais de um sistema funcionam no mesmo processo sem mudar o schema. SQLite agora; Postgres entra como segunda implementação da interface quando houver mais de um processo (B1). Revê a E4 |
+| A2 | **Gemini 2.5 Flash**, temperatura 0, raciocínio 0 | ~US$ 0,015–0,03 por conversa. Revê a E3 |
+| A3 | **Smaug é o molde, não uma dependência.** Os pacotes são copiados e o agens evolui separado; não há plano de módulo comum | Correção no Smaug só chega aqui se alguém trouxer na mão |
+| A4 | **Configuração em camadas: padrão do motor → sistema → tenant.** Cada sistema é dono da sua configuração; no agens só ficam os padrões de fallback e o registro de cada sistema (como achá-lo e autenticar) | Onde exatamente cada camada mora: B2 |
+| A5 | **OpenAPI lida em tempo de execução**: baixada no boot, cache, recarga por sinal | Spec inválida derruba o boot. Revê a E1 |
+| A6 | **`x-atendente: true`** nas operações liberadas da OpenAPI do Eliza | Um PR no Eliza |
+| A7 | **Só rede Docker interna** na F1; rota pública na F2 | Teste de fora exige túnel |
+| A8 | **Texto e áudio na v1.** O modelo de mensagem já tem `anexos` (tipo, mime, tamanho, referência no canal) e cada agente tem política de mídia; sem armazenamento de arquivo | Imagem, documento e vídeo recebem resposta fixa; ligar depois é configuração e não mudança de schema |
+| M1 | **Pausa por intervenção humana: 12 h por padrão, configurável por sistema.** Cada nova mensagem humana (`deMim`) reinicia o prazo | |
+| M2 | **Identificação no Eliza:** telefone (já vem no ticket) → se não achar, pergunta o nome → se ainda não achar, fluxo de cadastro | A busca por nome tem risco de segurança: B3 |
+| M3 | **Dicionário de respostas padrão** alimenta o fastpath e as respostas fixas. Ponto de partida: as listas de confirmação/cancelamento e as mensagens do webhook do Eliza (`web/app/api/webhooks/whatsapp/.../route.ts`, `web/lib/domain/mensagens.ts`) | Pode ser sobrescrito por sistema e por tenant (A4) |
+| M4 | **Textos e limites do motor são só fallback.** Persona, tom, vocabulário e respostas são personalizáveis por sistema e por tenant (no Eliza já existe o vocabulário por nicho em `organizacao.termos` do `/contexto`) | |
+
+### Abertas — precisam de resposta antes do contrato fechar
 
 | # | Questão | Recomendação | Trade-off |
 |---|---|---|---|
-| A1 | **Base do agens:** SQLite próprio (como o Smaug), Postgres próprio, ou schema `atendente` no Supabase do Eliza (E4) | **SQLite próprio** num volume, com backup diário. Revê a E4: com vários sistemas, guardar conversa de todos no banco do Eliza não faz sentido | Backup e superfície LGPD separados do Eliza; migrar para Postgres se um dia houver mais de uma instância |
-| A2 | **Modelo padrão:** 2.5 Flash-Lite (E3) ou 2.5 Flash | **2.5 Flash, temperatura 0, raciocínio 0.** O Smaug registrou (29/09) que o Flash-Lite devolvia resposta vazia depois de `functionResponse`. Revê a E3 | ~US$ 0,015–0,03 por conversa em vez de ~0,006; a bateria de avaliação decide se o Lite volta |
-| A3 | **Código do Smaug:** copiar os pacotes genéricos ou extrair um módulo Go comum agora | **Copiar** (`llm`, `worker`, `transcricao`, esqueleto de `agent`), sem tocar no Smaug em produção. Unificar quando a duplicação doer | Correção num lado não chega no outro sozinha |
-| A4 | **Config de agente:** arquivo versionado (`agentes/eliza.yaml`) ou tabela + API admin | **Arquivo por agente** no repo, com segredos por nome de variável de ambiente | Mudar persona exige deploy (aceitável na F1) |
-| A5 | **Conector OpenAPI:** ler a especificação em runtime ou gerar cliente em build (E1) | **Runtime**: baixa a spec no boot, guarda em cache, recarrega por sinal; ferramentas = operações `x-atendente: true`. Revê a parte "cliente gerado" da E1 | Erro de spec aparece no boot, não na compilação; o boot falha se a spec for inválida |
-| A6 | **Marcação no Eliza:** adicionar `x-atendente: true` às operações da OpenAPI do Autoatendimento | Sim — mudança pequena em `web/lib/openapi/autoatendimento.ts` | Toca o Eliza (um PR) |
-| A7 | **Rede na F1:** só rede Docker interna com o Eliza, ou rota pública | **Interna** (o Eliza está na mesma VPS); rota pública só na F2 (widget) | Testar de fora exige túnel |
-| A8 | **Imagem na F1:** aceitar (foto de documento, print de horário) ou responder "só texto e áudio" | **Responder fixo** na F1 | Menos útil; evita custo e risco de dado sensível em imagem |
+| B1 | **Mais de um processo do motor ao mesmo tempo** (réplicas). A1 já cobre vários tenants e vários sistemas num processo, e outra empresa (ex.: Geti) numa implantação separada com base própria | **Não agora.** SQLite com as interfaces da A1; Postgres + trava distribuída (advisory lock) quando um processo não der conta ou quando for preciso deploy sem pausa | Se as réplicas forem necessárias desde já: Postgres no dia 1, +1 container na VPS e a fila por conversa deixa de ser só em memória |
+| B2 | **Onde mora a configuração do sistema e do tenant** | **O sistema entrega a configuração já combinada (sistema + tenant) junto com o contexto do turno.** No Eliza: campo `atendente` novo no `GET /contexto` (persona, tom, horas de pausa, respostas padrão), lido de `autoatendimento_config`. O agens só aplica o próprio fallback por cima | Toca o Eliza (coluna + campo no contexto). A mensagem `deMim` não traz ticket, então a pausa usa a última configuração vista da conversa, ou 12 h |
+| B3 | **Busca por nome (M2)**: quem escreve "sou a Maria Silva" de outro número pode se passar pela Maria | **O nome nunca dá acesso.** Se o nome bate com um cadastro, o agens não mostra nem mexe nesse cadastro: escala para a equipe vincular o número novo e avisa o cliente. Endpoint novo no Eliza que responde só se existe ou não | Mais lento para quem trocou de número de verdade. Alternativa: segundo fator (data de nascimento, data do último atendimento), mais código e mais atrito |
+| B4 | **Módulo de treinamento** (decisão extra): o usuário do sistema conversa com um agens "zerado", que aprende os padrões dele | Ver §11 | |
+
+## 11. Módulo de treinamento (proposta — B4)
+
+**O que é:** um modo de conversa em que o interlocutor é o **operador** (o usuário do sistema, ex.: a
+dona do salão no Eliza), não o cliente final. O agens conduz uma entrevista guiada e, ao fim, gera um
+**perfil do tenant**.
+
+- **Saída é um perfil estruturado, não aprendizado livre:** tom e forma de tratamento, saudações e
+  despedidas, vocabulário, regras do negócio em texto ("não marco nada depois das 18h de sexta"),
+  perguntas frequentes com resposta, respostas padrão. Não há fine-tuning: o perfil entra no prompt,
+  na camada do tenant (A4).
+- **Rascunho → aprovação:** o operador revisa o que foi gerado e aprova; só a versão aprovada vale.
+  Perfil versionado, com volta para a versão anterior.
+- **Limites:** o perfil nunca sobrepõe as regras de segurança do motor nem libera ferramenta; regra de
+  negócio de verdade (horário, preço) continua no sistema, e o perfil só fala dela.
+- **Identidade:** o sistema afirma que quem conversa é operador daquele tenant (asserção, como no
+  modo da F3); um cliente final nunca entra nesse modo.
+- **Onde fica:** na base do agens, por `agente + tenant`, exposto ao sistema por API para mostrar e
+  editar. É exceção à A4 porque é dado que o próprio agens produz.
+- **Canal:** painel do sistema (chat web). Pelo WhatsApp não dá: no modo encaminhado, a mensagem do
+  dono pelo celular é tratada como intervenção humana.
+- **Fase recomendada:** logo depois da F2, que entrega o canal web; piloto com um tenant do Eliza.
+- **Depois (fora desta proposta):** sugerir ajustes ao perfil a partir das respostas reais do humano
+  (`deMim`). Isso envolve dado de cliente final no treinamento, então exige decisão de LGPD própria.
