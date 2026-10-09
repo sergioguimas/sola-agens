@@ -1,11 +1,12 @@
 // Comando sola-agens: motor de atendimento por LLM da Sola (specs/05).
-// Fases 1–2: config, agentes, HTTP, store (dedupe, apagamento) e manutenção; o
-// handler de mensagens ainda é um no-op.
+// Fases 1–3: config, agentes, OpenAPI → ferramentas, HTTP, store (dedupe,
+// apagamento) e manutenção; o handler de mensagens ainda é um no-op.
 package main
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,7 +22,9 @@ import (
 	"sola-agens/internal/config"
 	"sola-agens/internal/entrada"
 	"sola-agens/internal/httpapi"
+	"sola-agens/internal/llm"
 	"sola-agens/internal/manutencao"
+	"sola-agens/internal/openapi"
 	"sola-agens/internal/store/sqlite"
 )
 
@@ -82,6 +85,18 @@ func run(log *slog.Logger) error {
 		log.Info("agente carregado", "agente", a)
 	}
 
+	if err := llm.ConfigurarPrecos(cfg.Precos); err != nil {
+		return err
+	}
+
+	// Boot (specs/03 F6): baixa e converte a OpenAPI de cada agente; qualquer
+	// falha derruba o processo antes de o HTTP subir. Ainda sem uso (fase 4+).
+	conjuntos, err := carregarFerramentas(context.Background(), ags, log)
+	if err != nil {
+		return err
+	}
+	_ = conjuntos
+
 	st, err := sqlite.Open(filepath.Join(cfg.DataDir, "agens.db"), time.Now)
 	if err != nil {
 		return err
@@ -126,4 +141,31 @@ func run(log *slog.Logger) error {
 	shCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shCtx)
+}
+
+// conjunto é o que o boot guarda por agente: a spec crua (o pacote sistema
+// localiza nela as operações do motor) e as ferramentas do LLM.
+type conjunto struct {
+	Spec        []byte
+	Ferramentas []openapi.Ferramenta
+}
+
+func carregarFerramentas(ctx context.Context, ags []agentes.Agente, log *slog.Logger) (map[string]conjunto, error) {
+	// DECISÃO: timeout de 30 s por tentativa de download (a spec é maior que um
+	// request comum; AGENS_SISTEMA_TIMEOUT vale para as chamadas do turno).
+	cli := &http.Client{Timeout: 30 * time.Second}
+	out := make(map[string]conjunto, len(ags))
+	for _, a := range ags {
+		spec, err := openapi.Carregar(ctx, cli, a)
+		if err != nil {
+			return nil, fmt.Errorf("agente %s: %w", a.ID, err)
+		}
+		tools, err := openapi.Converter(spec, a)
+		if err != nil {
+			return nil, fmt.Errorf("agente %s: %w", a.ID, err)
+		}
+		out[a.ID] = conjunto{Spec: spec, Ferramentas: tools}
+		log.Info("ferramentas carregadas", "agente", a.ID, "ferramentas", len(tools))
+	}
+	return out, nil
 }

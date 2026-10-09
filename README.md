@@ -1,8 +1,8 @@
 # Sola Agens — atendente da Sola
 
 **Status:** em construção (09/10/2026). Todas as
-decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–2 do build
-feitas (esqueleto, base). Próximo passo: fase 3 (OpenAPI, conector, LLM). PR do Eliza codado (contrato 07, aceite pendente).
+decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–3 do build
+feitas (esqueleto, base, OpenAPI/conector/LLM). Próximo passo: fase 4 (agente). PR do Eliza codado (contrato 07, aceite pendente).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:
@@ -44,3 +44,13 @@ Estrutura, padrão de documentação e boa parte do código vêm do Smaug
 - Funções de hash do contato em `internal/mensagem` (revisão Opus: `store` não importa `entrada`).
 - Manutenção: catch-up de hoje, ontem e anteontem; no primeiro boot roda os três dias (vazios).
 - Teste de fumaça: base criada, mensagem repetida → 202 com log "duplicado", apagamento com token errado → 401, certo → 204.
+
+**Fase 3 (09/10/2026)**
+
+- `internal/llm` copiado do Smaug em `b81d795` (redmilab), sem mudança de comportamento; + `InputTokens`/`OutputTokens` e `preco.go` (2.5-flash 0,30/2,50 e 2.5-flash-lite 0,10/0,40 US$/milhão — conferir antes do deploy).
+- Golden gerado da spec **real** do Eliza servida pelo build com o contrato 07 (não houve marcação à mão). 12 ferramentas; `TestElizaEstrutura` trava destinos e obrigatórios além do golden.
+- `format` não suportado (uuid) vira dica " (formato: uuid)" na descrição (decisão da revisão); `allOf` mesclado; `anyOf`/`oneOf` só "X ou null" — outro caso é erro, não descarte silencioso.
+- Ferramenta sem argumento: `Parameters` nil (o Gemini recusa objeto sem propriedades).
+- Conector: `null` do LLM = omitido; path param ausente/`.`/`..` vira erro de regra sem chamar o sistema; 2xx sem `data` ou 3xx = `NAO_ENVELOPE` (aborta); todo 5xx aborta, mesmo com código de regra (ex.: `WHATSAPP_UNAVAILABLE`). Erros nunca carregam URL, corpo ou mensagem do sistema.
+- `Carregar`: 5 tentativas com esperas 2/4/8/16 s; timeout de 30 s por tentativa.
+- `sistema`: `ErrNotFound` e `ErrMediaTooLarge` distinguíveis com `errors.Is` (fase 5); `atendente` ausente no contexto = valor zero (Eliza sem o 07 continua funcionando).

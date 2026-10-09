@@ -1,0 +1,310 @@
+[
+  {
+    "Decl": {
+      "Name": "listarAgendamentos",
+      "Description": "Agendamentos do cliente\n\nFuturos e ativos (`pending`/`scheduled`/`confirmed`) do cliente do ticket, até 20. A consulta filtra por organização **e** cliente: nada de outro cliente aparece. Exige `identificado`.",
+      "Parameters": null
+    },
+    "Metodo": "GET",
+    "Caminho": "/api/v1/autoatendimento/agendamentos",
+    "Args": {},
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "criarAgendamento",
+      "Description": "Cria um agendamento (nasce pending)\n\nCria um agendamento para o **cliente do ticket** (nunca do body). Nasce `pending`: aguarda o estabelecimento aprovar, então diga isso ao cliente. O preço vem do serviço. Nenhuma mensagem de WhatsApp é enviada pelo Eliza (quem responde é você).\n\nValidações, nesta ordem: serviço e profissional ativos (`NOT_FOUND`) → limite de agendamentos ativos (`ACTIVE_LIMIT_REACHED`) → janela (`OUT_OF_WINDOW`) → antecedência (`NOTICE_TOO_SHORT`) → horário livre e na grade (`SLOT_UNAVAILABLE`, com até 3 `sugestoes` do mesmo dia e profissional).\n\n**Idempotência:** repetir o mesmo pedido (mesmo cliente, profissional e início) em até 10 minutos devolve o agendamento já criado, com o mesmo `id`.\n\nLimites: `aa-escrita` (20/h) e `aa-criar` (5/24h).\n\n> No Swagger, este botão **cria dados reais** na organização do ticket.",
+      "Parameters": {
+        "properties": {
+          "inicio": {
+            "description": "`AAAA-MM-DDTHH:mm`, relógio de São Paulo. Tem de ser um dos horários de `GET /horarios`, dentro da janela e da antecedência.",
+            "type": "string"
+          },
+          "observacao": {
+            "description": "Texto livre do cliente (até 500 caracteres).",
+            "type": "string"
+          },
+          "profissionalId": {
+            "description": "Profissional ativo (de `GET /horarios`). (formato: uuid)",
+            "type": "string"
+          },
+          "servicoId": {
+            "description": "Serviço ativo (de `GET /servicos`). (formato: uuid)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inicio",
+          "profissionalId",
+          "servicoId"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "POST",
+    "Caminho": "/api/v1/autoatendimento/agendamentos",
+    "Args": {
+      "inicio": "body",
+      "observacao": "body",
+      "profissionalId": "body",
+      "servicoId": "body"
+    },
+    "BodyObrigatorio": true
+  },
+  {
+    "Decl": {
+      "Name": "cancelarAgendamento",
+      "Description": "Cancela mantendo o registro\n\nMuda o status para `canceled`. **Nunca apaga.** Só `pending`/`scheduled`/`confirmed` e só fora da antecedência mínima; dentro dela, `NOTICE_TOO_SHORT` e você deve escalar (a equipe decide exceções). Nenhuma mensagem é enviada pelo Eliza. Limite: `aa-escrita`.",
+      "Parameters": {
+        "properties": {
+          "id": {
+            "description": "Id do agendamento. (formato: uuid)",
+            "type": "string"
+          },
+          "motivo": {
+            "description": "Motivo dito pelo cliente (até 300 caracteres).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "POST",
+    "Caminho": "/api/v1/autoatendimento/agendamentos/{id}/cancelar",
+    "Args": {
+      "id": "path",
+      "motivo": "body"
+    },
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "confirmarAgendamento",
+      "Description": "O cliente confirma presença\n\nPara quando o cliente diz \"vou\". Só vale em `scheduled` e antes do horário. **`pending` não se confirma:** ele ainda aguarda a aprovação do estabelecimento (`INVALID_TRANSITION`). Repetir em `confirmed` devolve `200` sem novo log. Limite: `aa-escrita`.",
+      "Parameters": {
+        "properties": {
+          "id": {
+            "description": "Id do agendamento (veja `aguardandoConfirmacao` no contexto). (formato: uuid)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "POST",
+    "Caminho": "/api/v1/autoatendimento/agendamentos/{id}/confirmar",
+    "Args": {
+      "id": "path"
+    },
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "remarcarAgendamento",
+      "Description": "Remarca (volta a pending)\n\nMuda o horário (e, se vier, o profissional) do **mesmo registro**: histórico, pagamento e `id` continuam. O serviço nunca muda. O status **volta a `pending`** (um \"confirmado\" valia para o horário antigo; o estabelecimento aprova de novo) e os lembretes são zerados. Remarcar para outro horário que sobreponha o próprio atual é permitido.\n\nSó `pending`/`scheduled`/`confirmed` (`INVALID_TRANSITION` nos demais) e só fora da antecedência mínima (`NOTICE_TOO_SHORT`: escale para a equipe). Mesmas validações de janela, antecedência e horário da criação. Limite: `aa-escrita`.",
+      "Parameters": {
+        "properties": {
+          "id": {
+            "description": "Id do agendamento (de `GET /agendamentos` ou do contexto). (formato: uuid)",
+            "type": "string"
+          },
+          "inicio": {
+            "description": "Novo horário, mesmas regras da criação.",
+            "type": "string"
+          },
+          "profissionalId": {
+            "description": "Omitido = mantém o profissional atual. (formato: uuid)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "inicio"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "POST",
+    "Caminho": "/api/v1/autoatendimento/agendamentos/{id}/remarcar",
+    "Args": {
+      "id": "path",
+      "inicio": "body",
+      "profissionalId": "body"
+    },
+    "BodyObrigatorio": true
+  },
+  {
+    "Decl": {
+      "Name": "lerCadastro",
+      "Description": "Lê o próprio cadastro\n\nO cadastro do telefone do ticket. Exige `identificado`. Devolve o documento **mascarado** e só se há data de nascimento; nunca endereço, observações, gênero nem documento completo. Não existe busca por nome, documento ou outro telefone.",
+      "Parameters": null
+    },
+    "Metodo": "GET",
+    "Caminho": "/api/v1/autoatendimento/cadastro",
+    "Args": {},
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "atualizarCadastro",
+      "Description": "Atualiza o próprio cadastro\n\nExige `identificado`. Pelo menos um campo. `nome`, `email` e `dataNascimento` sobrescrevem. `documento` só é aceito se o cadastro **ainda não tem** (trocar documento por WhatsApp é o caminho de apropriar cadastro alheio). O telefone nunca muda por aqui. Limite: `aa-escrita`.",
+      "Parameters": {
+        "properties": {
+          "dataNascimento": {
+            "description": "`AAAA-MM-DD`.",
+            "type": "string"
+          },
+          "documento": {
+            "description": "Aceito só se o cadastro ainda **não tem** documento; nunca troca um existente (`INVALID_TRANSITION`).",
+            "type": "string"
+          },
+          "email": {
+            "description": "Novo e-mail. (formato: email)",
+            "type": "string"
+          },
+          "nome": {
+            "description": "Novo nome.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "Metodo": "PATCH",
+    "Caminho": "/api/v1/autoatendimento/cadastro",
+    "Args": {
+      "dataNascimento": "body",
+      "documento": "body",
+      "email": "body",
+      "nome": "body"
+    },
+    "BodyObrigatorio": true
+  },
+  {
+    "Decl": {
+      "Name": "criarCadastro",
+      "Description": "Cria o cadastro do número do ticket\n\nSó quando a identificação é `desconhecido`. O telefone vem do ticket (nunca do body). Se o documento já existe na organização, `CUSTOMER_CONFLICT` **sem** vincular nem alterar o cadastro existente: o documento pode ser de outra pessoa e a equipe decide. Escale.\n\n`identificado` → `CUSTOMER_CONFLICT` (use PATCH); `ambiguo` → `CUSTOMER_AMBIGUOUS`. Limite: `aa-escrita`.\n\n> No Swagger, este botão **cria dados reais** na organização do ticket.",
+      "Parameters": {
+        "properties": {
+          "dataNascimento": {
+            "description": "`AAAA-MM-DD`.",
+            "type": "string"
+          },
+          "documento": {
+            "description": "CPF ou CNPJ, com ou sem pontuação. Já existir na organização: `CUSTOMER_CONFLICT`.",
+            "type": "string"
+          },
+          "email": {
+            "description": "E-mail do cliente. (formato: email)",
+            "type": "string"
+          },
+          "nome": {
+            "description": "Nome completo (3 a 120 caracteres).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "documento",
+          "nome"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "POST",
+    "Caminho": "/api/v1/autoatendimento/cadastro",
+    "Args": {
+      "dataNascimento": "body",
+      "documento": "body",
+      "email": "body",
+      "nome": "body"
+    },
+    "BodyObrigatorio": true
+  },
+  {
+    "Decl": {
+      "Name": "verificarNomeCadastrado",
+      "Description": "Já existe cadastro com este nome?\n\nUse só quando o contexto disser `desconhecido` e o cliente informar o nome. `existe: true` significa que já há um cadastro com esse nome **em outro número**: não tente acessá-lo nem cadastrar de novo; chame a equipe com o motivo `numero_novo`. `existe: false`: siga para `criarCadastro`.\n\nCompara o nome **completo**, sem diferenciar acento, caixa nem espaços repetidos; nunca prefixo nem semelhança. Devolve só `existe`: nunca id, contagem nem telefone. Limite: `aa-nome` (10/h).",
+      "Parameters": {
+        "properties": {
+          "nome": {
+            "description": "Nome completo informado pelo cliente (3 a 120 caracteres).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nome"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "GET",
+    "Caminho": "/api/v1/autoatendimento/cadastro/nome",
+    "Args": {
+      "nome": "query"
+    },
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "consultarHorarios",
+      "Description": "Horários livres de um serviço num dia\n\nHorários de **início** livres para a duração do serviço, um bloco por profissional (**incluindo** quem ficou sem horário, com `motivoVazio`, para você poder dizer \"com a Ana não há, com o Bruno há\"). Já aplica a antecedência mínima.\n\nÉ o mesmo predicado que valida a criação e a remarcação: **se está na lista, a API aceita; se não está, recusa.**\n\nA query é estrita (`organizationId`, telefone etc. dão `422`). Não exige cliente identificado.",
+      "Parameters": {
+        "properties": {
+          "data": {
+            "description": "Dia no relógio de São Paulo, `AAAA-MM-DD`, entre hoje e hoje + janela máxima.",
+            "type": "string"
+          },
+          "profissionalId": {
+            "description": "Omitido = todos os profissionais ativos. (formato: uuid)",
+            "type": "string"
+          },
+          "servicoId": {
+            "description": "Serviço ativo. (formato: uuid)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "servicoId"
+        ],
+        "type": "object"
+      }
+    },
+    "Metodo": "GET",
+    "Caminho": "/api/v1/autoatendimento/horarios",
+    "Args": {
+      "data": "query",
+      "profissionalId": "query",
+      "servicoId": "query"
+    },
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "listarProfissionais",
+      "Description": "Profissionais ativos\n\nProfissionais ativos. Nunca expõe telefone nem registro profissional. **Não existe vínculo serviço ↔ profissional:** todo profissional ativo atende todo serviço.",
+      "Parameters": null
+    },
+    "Metodo": "GET",
+    "Caminho": "/api/v1/autoatendimento/profissionais",
+    "Args": {},
+    "BodyObrigatorio": false
+  },
+  {
+    "Decl": {
+      "Name": "listarServicos",
+      "Description": "Serviços ativos\n\nServiços ativos da organização do ticket. Não exige cliente identificado: um desconhecido pode perguntar preço antes de se cadastrar. `preco: null` = não divulgar; preço `0` continua `0`.",
+      "Parameters": null
+    },
+    "Metodo": "GET",
+    "Caminho": "/api/v1/autoatendimento/servicos",
+    "Args": {},
+    "BodyObrigatorio": false
+  }
+]
