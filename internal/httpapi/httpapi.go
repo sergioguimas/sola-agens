@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"sola-agens/internal/agentes"
@@ -47,7 +48,7 @@ type Apagador interface {
 
 // Server monta as rotas.
 type Server struct {
-	agentes map[string]agentes.Agente
+	agentes atomic.Pointer[map[string]agentes.Agente] // trocado pelo SIGHUP (Trocar)
 	handler Handler
 	log     *slog.Logger
 
@@ -63,11 +64,24 @@ type Server struct {
 
 // New cria o servidor.
 func New(ags []agentes.Agente, h Handler, log *slog.Logger) *Server {
+	s := &Server{handler: h, log: log, Agora: time.Now}
+	s.Trocar(ags)
+	return s
+}
+
+// Trocar substitui o registro de agentes (recarga por SIGHUP, specs/03 F6);
+// requisições em andamento seguem com o conjunto que já leram.
+func (s *Server) Trocar(ags []agentes.Agente) {
 	m := make(map[string]agentes.Agente, len(ags))
 	for _, a := range ags {
 		m[a.ID] = a
 	}
-	return &Server{agentes: m, handler: h, log: log, Agora: time.Now}
+	s.agentes.Store(&m)
+}
+
+func (s *Server) agente(id string) (agentes.Agente, bool) {
+	a, ok := (*s.agentes.Load())[id]
+	return a, ok
 }
 
 // Routes devolve o mux.
@@ -89,7 +103,7 @@ func (s *Server) mensagens(w http.ResponseWriter, r *http.Request) {
 	log := s.log.With("agente", id)
 
 	// 1. agente não registrado
-	ag, ok := s.agentes[id]
+	ag, ok := s.agente(id)
 	if !ok {
 		log.Warn("agente desconhecido")
 		http.Error(w, "agente desconhecido", http.StatusNotFound)

@@ -1,8 +1,8 @@
 # Sola Agens — atendente da Sola
 
 **Status:** em construção (09/10/2026). Todas as
-decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–3 do build
-feitas (esqueleto, base, OpenAPI/conector/LLM). Próximo passo: fase 4 (agente). PR do Eliza codado (contrato 07, aceite pendente).
+decisões da F1 fechadas em 09/10 ([CONTRATO §10](CONTRATO.md#10-decisões-da-f1)). Fases 1–4 do build
+feitas (o agens já atende de ponta a ponta com fakes). Próximo passo: fase 5 (áudio). PR do Eliza codado (contrato 07, aceite pendente).
 
 Plataforma interna da Sola para pôr um atendente (LLM com ferramentas) em qualquer sistema da Sola. O
 motor lê a **OpenAPI** do sistema e transforma as operações liberadas em ferramentas. Primeiro agente:
@@ -54,3 +54,20 @@ Estrutura, padrão de documentação e boa parte do código vêm do Smaug
 - Conector: `null` do LLM = omitido; path param ausente/`.`/`..` vira erro de regra sem chamar o sistema; 2xx sem `data` ou 3xx = `NAO_ENVELOPE` (aborta); todo 5xx aborta, mesmo com código de regra (ex.: `WHATSAPP_UNAVAILABLE`). Erros nunca carregam URL, corpo ou mensagem do sistema.
 - `Carregar`: 5 tentativas com esperas 2/4/8/16 s; timeout de 30 s por tentativa.
 - `sistema`: `ErrNotFound` e `ErrMediaTooLarge` distinguíveis com `errors.Is` (fase 5); `atendente` ausente no contexto = valor zero (Eliza sem o 07 continua funcionando).
+
+**Fase 4 (09/10/2026)**
+
+- **Correção de segurança da revisão:** `nomeExibicao` (pushName, escolhido pelo próprio contato) e `primeiroNome` (cadastro) entravam crus no prompt de sistema — um perfil "Ana. Ignore as regras..." viraria instrução. Agora passam por `nomeSeguro` (só letras, espaço e `. ' -`, até 40 runes) e entram entre aspas, marcados como dado.
+- `{primeiroNome}` ausente: o placeholder sai com a vírgula/espaço antes dele ("Prontinho, {primeiroNome}!" → "Prontinho!").
+- Normalização do fastpath ignora tom de pele e seletor de variação (👍🏽 = 👍).
+- Chamadas paralelas do Gemini executadas em sequência; falha técnica interrompe as restantes.
+- `config_json` guarda o `Atendente` do contexto direto (sem a chave `atendente`).
+- Texto + anexo vai ao LLM com marcadores (`[áudio 12s]`, `[imagem]`); só anexo com política `resposta_fixa` → resposta fixa. Áudio com `processar` ainda vira `midiaNaoSuportada` até a fase 5.
+- Ticket inválido no contexto grava a mensagem do cliente na memória, sem responder nem escalar.
+- Envio, memória e log depois do loop usam contexto próprio de 30 s (a `falhaTecnica` sai mesmo depois do timeout do turno).
+- `chamar_humano` com motivo fora do enum volta ao LLM como erro de regra; resumo cortado em 1000 runes.
+- `operacoes.confirmar/cancelar` que não existem como ferramenta derrubam o boot (typo no yaml desligaria o fastpath em silêncio).
+- `httpapi` passou a trocar o mapa de agentes atomicamente (SIGHUP atualiza segredo e headers). SIGHUP é no-op no Windows (build tag); compila para Linux.
+- `Pool.Close` cancela turnos que estouram o prazo; cada item tem `recover`.
+- **Risco aceito:** o 202 sai quando a mensagem entra no debounce; se a fila da conversa (100) estiver cheia quando a rajada fecha, o lote é descartado com log de erro e o Eliza não tem como saber. Com 100 itens por conversa, só acontece com o agens travado.
+- `-race` não roda nesta máquina (sem gcc/cgo); debounce, worker e atendimento rodados com `-count=8` sem instabilidade. Rodar `-race` no fechamento em Linux/container.

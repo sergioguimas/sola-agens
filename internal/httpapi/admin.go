@@ -33,7 +33,7 @@ func (s *Server) apagarContato(w http.ResponseWriter, r *http.Request) {
 	}
 	id := store.ConversaID{Agente: r.PathValue("a"), Tenant: r.PathValue("t"), Contato: r.PathValue("c")}
 	log := s.log.With("agente", id.Agente, "tenant", id.Tenant, "conversa", mensagem.HashContato(id.Contato))
-	if _, ok := s.agentes[id.Agente]; !ok {
+	if _, ok := s.agente(id.Agente); !ok {
 		log.Warn("agente desconhecido")
 		http.Error(w, "agente desconhecido", http.StatusNotFound)
 		return

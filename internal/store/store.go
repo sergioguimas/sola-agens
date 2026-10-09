@@ -49,6 +49,10 @@ func (c ConversaID) Valida() error {
 	return nil
 }
 
+// Chave é "agente:tenant:contato": a chave da fila, do debounce e da trava
+// (specs/05 §4). Só para uso interno; nunca vai para log (tem o contato).
+func (c ConversaID) Chave() string { return c.Agente + ":" + c.Tenant + ":" + c.Contato }
+
 // Conversa é o estado da conversa: ativa ou pausada até um instante.
 type Conversa struct {
 	ID           ConversaID
