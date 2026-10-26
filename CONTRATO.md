@@ -105,7 +105,7 @@ Apagamento por titular em `DELETE /admin/...` (specs/03 F10).
 
 ## 9. Fora do escopo — backlog
 
-Canal web e modo anônimo (F2, site); asserção do motor e envio de arquivo (F3, Axios); confirmação
+Canal web e modo anônimo (F2a, `/marcar` do Eliza — rodada 4) e conhecimento estático + embed (F2b, site); asserção do motor e envio de arquivo (F3, Axios); confirmação
 antes de gravar (F4, SolaBridge); painel de configuração; API oficial do WhatsApp; comando para
 retomar conversa pausada; imagem e documento; réplicas do processo (B1); módulo de treinamento (§11).
 
@@ -136,6 +136,23 @@ retomar conversa pausada; imagem e documento; réplicas do processo (B1); módul
 | B2 | **O sistema entrega a configuração já combinada (sistema + tenant) junto com o contexto do turno.** No Eliza: campo `atendente` novo no `GET /contexto` (persona, tom, horas de pausa, respostas padrão), lido de `autoatendimento_config`. O agens só aplica o próprio fallback por cima. A pausa (`deMim`, sem ticket) usa a última configuração vista da conversa, ou 12 h | Um PR no Eliza (coluna + campo no contexto + Zod/OpenAPI) |
 | B3 | **O nome nunca dá acesso.** Se o nome bate com um cadastro de outro telefone, o agens não mostra nem age sobre esse cadastro: escala para a equipe vincular o número novo e avisa o cliente. **`nomeExibicao` (o `pushName` do WhatsApp) não é fator de segurança**: é o nome que o próprio remetente põe no perfil e pode ser trocado por qualquer um. Uso permitido só como conveniência: se bate com o cadastro do *mesmo telefone*, o agens cumprimenta pelo nome; se o telefone não achou ninguém, pode perguntar "você é a Maria?" em vez de pedir o nome do zero — e a resposta continua sem dar acesso | Endpoint novo no Eliza que responde só se existe cadastro com aquele nome (sem dados). Quem trocou de número depende da equipe |
 | B4 | **Módulo de treinamento: aceito como direção, com ressalvas.** A §11 fica como rascunho; o desenho é rediscutido em detalhe quando o módulo entrar no plano (depois da F2) | Nada da F1 depende dele; a camada de tenant da A4 já é onde o perfil vai entrar |
+
+### Fechadas — rodada 4 (26/10/2026, com o Sérgio): canal web da `/marcar` do Eliza (F2a)
+
+Detalhe, alternativas e motivos em [docs/RODADA-4-CANAL-WEB-MARCAR.md](docs/RODADA-4-CANAL-WEB-MARCAR.md).
+
+| # | Decisão |
+|---|---|
+| W1 | Chat na página pública só **aconselha e pré-preenche** o formulário; nunca grava |
+| W2 | Modo **anônimo** com **ticket de visitante** emitido pelo Eliza (`tipo:"visitante"`, `org`, `sess`, sem `tel`/`inst`, TTL 30 min), aceito só em contexto, serviços, profissionais e horários |
+| W3 | Navegador → **Eliza** (`POST /api/marcar/{slug}/chat`) → agens; agens continua só na rede interna (A7 vale) |
+| W4 | Turno **síncrono** `{ resposta, acoes[] }`, sem streaming; `preencher_agendamento` é **ferramenta de canal** (o motor não executa, devolve em `acoes`); o navegador valida antes de aplicar |
+| W5 | Retenção do anônimo: **7 dias** de texto, depois só metadados |
+| W6 | Limites: 20 msg/sessão, 60/IP/h, 500 caracteres (Eliza); teto diário de turnos por org, padrão 300 (agens); sem CAPTCHA na v1 |
+| W7 | O chat **não pede dado pessoal**; aviso fixo de assistente automático |
+| W8 | Liga por org: `autoatendimento_config.canal_web` (padrão `false`), exige também `ativo` |
+| W9 | UI em **React dentro do Eliza**; embed genérico só na F2b |
+| W10 | F2 dividida: **F2a** (`/marcar`) depois do aceite da F1; **F2b** (conhecimento estático + embed + site) em seguida |
 
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 

@@ -94,6 +94,7 @@ CONTRATO §10):
 | Fase | Entrega | Prova |
 |---|---|---|
 | **F1** | Motor + conector OpenAPI + modo **encaminhado** + agente **Eliza** | A API do Eliza já existe e foi testada: valida o motor sem mexer em sistema |
-| **F2** | Canal **web (widget)** + modo **anônimo** + **conhecimento estático** + agente do **site** | Canal novo e agente sem OpenAPI de escrita |
+| **F2a** | Canal **web** (via Eliza) + modo **anônimo** + **ferramenta de canal** + chat da `/marcar` do Eliza (rodada 4, W10) | Canal novo com tráfego real, sobre a OpenAPI que já existe |
+| **F2b** | **Conhecimento estático** + **embed genérico** + agente do **site** | Agente sem OpenAPI de escrita, em site estático |
 | **F3** | Modo **asserção do motor** + **envio de arquivo** + agente **Axios Calc** | Primeiro sistema que implementa o contrato de integração do zero |
 | **F4** | **Confirmação antes de gravar** + agente **SolaBridge** | Laravel e dado fiscal: independência de stack e segurança de escrita |
