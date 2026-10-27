@@ -7,7 +7,7 @@
 #
 # Cada rodada = um turno (as mensagens são o que o debounce juntaria). Em resposta_contem e
 # resposta_nao_contem, "a|b" casa "a" OU "b"; sem acento e sem diferenciar caixa.
-# Ficaram de fora (ver README): 16, 17, 18 (pausa e eco), 19–21 (áudio e foto), 22 (duplicada), 24 (agens fora).
+# Ficaram de fora (ver docs/OPERACAO.md): 16, 17, 18 (pausa e eco), 19–21 (áudio e foto), 22 (duplicada), 24 (agens fora).
 
 - id: 1
   nome: Cliente identificado marca um corte

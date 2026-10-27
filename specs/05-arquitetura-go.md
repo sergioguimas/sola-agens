@@ -13,7 +13,7 @@ sola-agens/
 ├── go.mod                   module sola-agens
 ├── Dockerfile               multi-stage, imagem final distroless/static, usuário não-root, volume /data
 ├── .env.example
-├── README.md                como operar
+├── README.md                visão geral (operação em docs/OPERACAO.md)
 ├── CONTRATO.md, PLANO-DE-BUILD.md, CHECKLIST-ACEITE.md, specs/, docs/DECISOES.md
 ├── agentes/
 │   └── eliza.yaml           registro do agente (§6)
@@ -63,7 +63,7 @@ usa é pequeno e o golden trava o comportamento.
 | `internal/domain`, `agent/tools_*.go`, `export`, `image.go` | **fica no Smaug** | |
 
 Ao copiar, trocar o import path (`smaug/internal/...` → `sola-agens/internal/...`) e apagar o que é
-do livro-caixa. Cópia registrada no README ("copiado do Smaug em <commit>") para saber de onde veio.
+do livro-caixa. Cópia registrada em docs/HISTORICO-DO-BUILD.md ("copiado do Smaug em <commit>") para saber de onde veio.
 
 ## 3. Fluxo de dependências
 

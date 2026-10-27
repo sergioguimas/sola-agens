@@ -16,7 +16,7 @@ Sonnet escreve o grosso do código**, uma fase por vez, via subagentes.
    própria sessão faz; estrutural: volta ao Sonnet com o parecer.
 3. **Uma fase por vez, na ordem.** Não avançar com teste vermelho ou `vet` sujo.
 4. **Especificação manda.** Decisão que os docs não cobrem: a sessão Opus decide, anota no
-   `README.md` em "Decisões durante o build" e segue. Se contraria o CONTRATO ou a §9 da specs/05,
+   `docs/HISTORICO-DO-BUILD.md` em "Decisões durante o build" e segue. Se contraria o CONTRATO ou a §9 da specs/05,
    para e pergunta ao Sérgio.
 5. **Sem rede nos testes.** Gemini, sistema e transcrição só por interface + fake. A spec real do
    Eliza vai para `testdata/` como golden. O aceite (CHECKLIST-ACEITE) é manual, contra o Eliza de
@@ -37,7 +37,7 @@ Regras: uma fase por vez conforme PLANO-DE-BUILD §3; cada fase é delegada a um
 (Agent, model "sonnet") com o cabeçalho comum e o prompt da fase (§4); você (Opus) revisa com o
 checklist de §5, roda go vet e go test, corrige o que for pequeno, devolve ao Sonnet o que for
 estrutural, e commita "agens: fase N — ..." na main. Não avance com teste vermelho. Decisões fora do
-spec vão em README.md → "Decisões durante o build". Ao fim de cada fase, me diga em 3 linhas o que
+spec vão em docs/HISTORICO-DO-BUILD.md → "Decisões durante o build". Ao fim de cada fase, me diga em 3 linhas o que
 entrou e o que ficou.
 
 Comece pela fase 1.
@@ -52,7 +52,7 @@ Comece pela fase 1.
 | 3 | OpenAPI, conector e clientes | `openapi` (golden do Eliza), `conector`, `sistema`, `llm` copiado do Smaug + `preco.go` | golden spec → ferramentas; conector e sistema com `httptest`; golden do request Gemini |
 | 4 | Agente | `agent` (prompt, loop, dicionário, fastpath, `chamar_humano`), `debounce`, `worker` copiado, ligação `httpapi → debounce → worker → agent → sistema`; pausa e eco | testes do `agent` e ponta a ponta com fakes (specs/05 §5) |
 | 5 | Áudio | `transcricao` copiado, `agent/audio.go`, normalização de `conteudo.tipo=audio`, `sistema.BaixarMidia` | ponta a ponta com fakes: áudio curto → transcrição fake → turno normal; áudio longo → resposta fixa sem download |
-| 6 | Fechamento | `README.md` (operação + decisões do build), `Dockerfile` final, `avaliacao/` (bateria em YAML de modelo e prompt, Eliza simulado + Gemini real), `health` do container, `go test -race`, deploy em dev, aceite | CHECKLIST-ACEITE preenchido |
+| 6 | Fechamento | `README.md` + `docs/OPERACAO.md` + `docs/HISTORICO-DO-BUILD.md`, `Dockerfile` final, `avaliacao/` (bateria em YAML de modelo e prompt, Eliza simulado + Gemini real), `health` do container, `go test -race`, deploy em dev, aceite | CHECKLIST-ACEITE preenchido |
 
 ### 3.1 Trilha paralela: PR do Eliza
 
@@ -193,12 +193,12 @@ contra o Eliza de dev e imprime o resultado de cada cenário. go test -race ./..
 ## 6. Depois do build
 
 1. Deploy em container na VPS da Sola, rede do Eliza, sem rota pública (A7). `.env` real com a chave
-   do Gemini pago. Passo a passo (build, volume `/data`, serviço do compose, rede): README, seções
-   [Container](README.md#container) e [Configurar](README.md#configurar).
+   do Gemini pago. Passo a passo (build, volume `/data`, serviço do compose, rede): docs/OPERACAO, seções
+   [Container](docs/OPERACAO.md#container) e [Configurar](docs/OPERACAO.md#configurar).
 2. No Eliza: `ATENDENTE_URL` e `ATENDENTE_ENCAMINHAMENTO_SECRET`; `autoatendimento_config` ativa só
-   para a org de teste (`admin`). Valores e ordem: README, [Ligar ao Eliza](README.md#ligar-ao-eliza).
+   para a org de teste (`admin`). Valores e ordem: docs/OPERACAO, [Ligar ao Eliza](docs/OPERACAO.md#ligar-ao-eliza).
 3. Antes do aceite: `go run ./avaliacao` (modelo e prompt; README, [Avaliação](README.md#avaliação-do-modelo-e-do-prompt)).
    Aceite manual (CHECKLIST-ACEITE) e medições (custo, latência, RAM; consultas em
-   [Custos](README.md#custos)). Anotar no README.
+   [Custos](docs/OPERACAO.md#custos)). Anotar em docs/OPERACAO.md.
 4. Só depois: ligar para uma org real, acompanhando o log de turnos na primeira semana.
 5. Backlog (CONTRATO §9) e o módulo de treinamento (§11, rediscutir) vão para `ROADMAP.md`.
