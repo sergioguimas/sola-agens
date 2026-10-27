@@ -160,6 +160,12 @@ Detalhe, alternativas e motivos em [docs/RODADA-4-CANAL-WEB-MARCAR.md](docs/RODA
 |---|---|---|
 | A9 | **Gemini 3.6 Flash**, temperatura 0, raciocínio 0. Revê a A2 (e, por ela, a E3) | Na 1ª bateria real (`go run ./avaliacao`, 17 cenários) o 2.5 Flash fez 10–11/17: respondia sem chamar ferramenta e perguntava o que já sabia. Com o prompt ajustado (0cac9a2): **3.6 Flash 34/34** (×2), 3.8 Flash 34/34 mas 6,5 s contra 3,9 s de latência média, 3.1 Flash-Lite 32/34 (falha o #8, número novo, que é de segurança). Preço pago: US$ 0,75/3,75 por milhão até 31/12/2026, **1,50/7,50 a partir de 01/01/2027** (~US$ 0,007 por turno hoje, ~0,015 depois). O 3.6 já é a geração anterior do Flash: quando for aposentado, trocar `AGENS_MODEL` e rodar a bateria de novo. Candidato seguinte: 3.8 Flash |
 
+### Fechada — infra na VPS (26/10/2026, com o Sérgio)
+
+| # | Decisão | Consequência |
+|---|---|---|
+| A10 | **O agens entra na `proxy_net`**, a rede compartilhada de todos os apps da VPS, sem labels do Traefik e sem `ports:` | Sistema novo fala com o agens sem configurar rede (o agens é de todos os sistemas, o Eliza é só o piloto). Continua não público (A7 vale). Troca aceita: todo container da `proxy_net` alcança o agens, e o agens alcança todos; a proteção é a assinatura HMAC por agente na entrada e o token na rota de admin. Alternativa descartada: rede própria `agens_net`, em que cada sistema entraria explicitamente |
+
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 
 **O que é:** um modo de conversa em que o interlocutor é o **operador** (o usuário do sistema, ex.: a

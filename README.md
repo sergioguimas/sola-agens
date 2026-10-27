@@ -70,28 +70,15 @@ monte `./agentes:/agentes:ro` e mande SIGHUP. O SQLite fica em `/data` (`VOLUME`
 - **`.env` de produção:** `env_file` vence o `ENV` da imagem. Apague (ou ajuste para `/data` e
   `/agentes`) as linhas `AGENS_DATA_DIR=./data` e `AGENS_AGENTES_DIR=./agentes` do `.env.example`.
 
-Na VPS da Sola o agens entra **na rede Docker do Eliza** e não publica porta nenhuma (só o Eliza o
-alcança, A7). Exemplo de serviço (ajuste o nome da rede com `docker network ls`):
+Na VPS da Sola o agens fica em `/opt/stacks/solasoftware/sola-agens` e entra na **`proxy_net`**, a rede
+que todo app da VPS já usa (A10): sistema novo não precisa de rede extra para falar com ele. O
+[docker-compose.yml](docker-compose.yml) do repositório já é o de produção. Ele **não tem labels do Traefik nem
+`ports:`**, então nada é público (A7); quando houver rota pública (F2b), ela entra como label só nessa rota.
 
-```yaml
-services:
-  sola-agens:
-    build: ./sola-agens          # ou image: <registro>/sola-agens:<tag>
-    container_name: sola-agens
-    restart: unless-stopped
-    env_file: .env
-    expose: ["4100"]             # só documenta; NADA de ports:
-    volumes:
-      - agens-data:/data
-    networks: [eliza]
-
-networks:
-  eliza:
-    external: true
-    name: <rede-do-compose-do-eliza>
-
-volumes:
-  agens-data:
+```
+cd /opt/stacks/solasoftware/sola-agens
+sudo docker compose up -d --build
+sudo docker logs -f sola-agens     # precisa baixar a spec de cada sistema no boot
 ```
 
 ## Ligar ao Eliza
@@ -105,8 +92,9 @@ Os segredos precisam ser **o mesmo valor** dos dois lados:
 | `AUTOATENDIMENTO_API_TOKEN` | `ELIZA_AUTOATENDIMENTO_API_TOKEN` |
 | — | `ELIZA_BASE_URL` = nome do serviço do Eliza na rede Docker + porta |
 
-O valor de `ELIZA_BASE_URL` no `.env.example` (`http://eliza:3000`) é **palpite**: confirme o nome e a porta
-no compose do Eliza na VPS (`docker compose ps`, `docker network inspect <rede>`).
+Na VPS o container do Eliza se chama **`elisa-app`** (com "s"), porta 3000: `ELIZA_BASE_URL=http://elisa-app:3000`.
+Preencha `ATENDENTE_URL` no Eliza **por último**, com o agens já saudável: é ela que liga o encaminhamento
+(vazia, o webhook do Eliza segue como antes).
 
 Ordem de ligação: suba o agens; confira `GET /health` e, no log, `ferramentas carregadas` (12 do Eliza);
 no Eliza, `autoatendimento_config.ativo=true` **primeiro só na org de teste `admin`**; faça o

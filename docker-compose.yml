@@ -1,0 +1,22 @@
+# VPS da Sola: /opt/stacks/solasoftware/sola-agens (A10).
+# Na proxy_net, como todo app da VPS, mas SEM labels do Traefik e sem ports:
+# nada aqui é público (A7). Os sistemas falam com o agens pelo nome do serviço
+# (ex.: ATENDENTE_URL=http://sola-agens:4100/a/eliza no Eliza).
+services:
+  sola-agens:
+    build: .
+    container_name: sola-agens
+    restart: unless-stopped
+    env_file: .env
+    expose: ["4100"]
+    volumes:
+      - agens-data:/data
+    networks:
+      - proxy_net
+
+networks:
+  proxy_net:
+    external: true
+
+volumes:
+  agens-data:
