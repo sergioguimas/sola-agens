@@ -542,6 +542,7 @@ func (e *turnoExec) concluir(modo, texto string) error {
 func (e *turnoExec) concluirCom(modo, texto, resultado string) error {
 	ctx, cancel := e.cauda()
 	defer cancel()
+	texto = FormatarWhatsApp(texto) // a memória guarda o que o cliente recebeu
 	enviados, err := e.enviar(ctx, texto)
 	if err != nil {
 		// Não reenvia: a escrita, se houve, já está no sistema (specs/03 F1).
