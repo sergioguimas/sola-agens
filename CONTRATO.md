@@ -174,6 +174,10 @@ Detalhe, alternativas e motivos em [docs/RODADA-4-CANAL-WEB-MARCAR.md](docs/RODA
 
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 
+> **Em rediscussão na rodada 5 (27/10/2026):** [docs/RODADA-5-TREINAMENTO.md](docs/RODADA-5-TREINAMENTO.md)
+> (T1–T12). O pedido muda dois pontos deste rascunho: aprimoramento **automático** de estilo (T5) e
+> o formato de ensaio (T3). Até a rodada fechar, este rascunho vale só como histórico.
+
 **O que é:** um modo de conversa em que o interlocutor é o **operador** (o usuário do sistema, ex.: a
 dona do salão no Eliza), não o cliente final. O agens conduz uma entrevista guiada e, ao fim, gera um
 **perfil do tenant**.
