@@ -8,7 +8,7 @@
 > que o pedido muda em relação ao rascunho ou que dependem de escolha de negócio. **🟢 proposta**: segue
 > o rascunho ou é consequência direta; vale se o Sérgio não contestar.
 > **Depois desta rodada:** contrato do agens (`specs/06-treinamento.md`, TO-BE) e contrato do lado do
-> Eliza (`Eliza/docs/contratos/autoatendimento/09-*`), nessa ordem.
+> Eliza (`Eliza/docs/contratos/autoatendimento/10-treino-do-atendente.md`), nessa ordem.
 
 ## O pedido
 

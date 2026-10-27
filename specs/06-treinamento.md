@@ -3,8 +3,8 @@
 > **TO-BE.** Nada disto existe no código; é o alvo da fase **F2c**, que vem **depois da F2a** (T12).
 > Decisões de origem: [docs/RODADA-5-TREINAMENTO.md](../docs/RODADA-5-TREINAMENTO.md) (T1–T12) e
 > CONTRATO §10 (rodada 5). Decisões tomadas ao escrever esta spec: §13 (S9–S17), para revisão.
-> O lado do sistema (Eliza) entra no contrato `Eliza/docs/contratos/autoatendimento/09-*`; o que ele
-> precisa entregar está na §12.
+> O lado do sistema (Eliza) está no contrato `Eliza/docs/contratos/autoatendimento/10-treino-do-atendente.md`
+> (C28–C36); resumo na §12.
 > Base das specs anteriores: identidade e assinatura em [04](04-integracoes.md) §1, schema portável em
 > [01](01-dominio-e-schema.md) §10, prompt em [02](02-ferramentas-e-prompt.md) §7, turno síncrono e
 > ticket de visitante na rodada 4 (W2, W4).
@@ -126,6 +126,23 @@ Prefixo `/a/{agente}/v1/treino`. Tudo síncrono, JSON, assinado (§4). Erros no 
 // 200
 { "resposta": "Oii! A unha em gel sai R$ 150 ✨ Quer ver os horários?", "versao": 7 }
 ```
+
+```jsonc
+// GET /perfil
+{ "versao": 7, "perfil": { /* §8 */ }, "secaoPrompt": "ESTILO DO ESTABELECIMENTO …" }   // sem perfil: versao 0, campos vazios, secaoPrompt ""
+// GET /perfil/versoes
+{ "versoes": [ { "versao": 7, "ativa": true, "origem": "sessao:…", "criadaEm": "2026-10-27T03:00:00Z", "mudancas": [ … ] } ] }
+// GET /observacoes
+{ "observacoes": [ { "id": "…", "campo": "saudacoes", "valor": "Oii flor!", "origem": "extraida",
+                     "estado": "candidata", "sessoes": 1, "elegivel": false, "citacao": "Oii flor!" } ] }
+// GET /notas
+{ "notas": [ { "id": "…", "texto": "…", "citacao": "…", "estado": "pendente", "criadaEm": "…" } ] }
+// POST /perfil/versoes/{n}/ativar
+{ "versao": 8, "rejeitadas": [ { "id": "…", "campo": "emojis.preferidos", "valor": "💅" } ] }
+```
+
+Instantes em ISO 8601 UTC. Os nomes de campo são os do Zod do Eliza (`contracts/autoatendimento/treino.ts`,
+contrato 10 §4); se mudar aqui, muda lá.
 
 `resposta` já sai normalizada para WhatsApp (`FormatarWhatsApp`).
 
@@ -312,7 +329,10 @@ ativar outra). Respostas fixas e fastpath não usam o perfil (T9).
 Gemini os manda em `generationConfig.responseMimeType`/`responseSchema` e **não** envia `tools` na
 mesma chamada. O `fake` aceita respostas JSON roteirizadas. Só a extração usa.
 
-## 10. Schema (`0002_treino.sql`, SQL portável — 01 §10)
+## 10. Schema (`0003_treino.sql`, SQL portável — 01 §10)
+
+A `0002` é a do papel `aviso` em `mensagens` (A11, contrato 09 do Eliza §7). Se a F2c for construída
+antes dela, a numeração inverte; o que importa é a ordem de aplicação ser a mesma nos dois bancos.
 
 ```sql
 CREATE TABLE sessoes_treino (
@@ -388,9 +408,9 @@ CREATE INDEX ix_notas_tenant ON notas (agente, tenant, estado);
 ```
 
 **`turnos.modo` ganha `'treino'` e `'previa'`.** O `CHECK` da 0001 não aceita, e nenhum dos dois bancos
-altera `CHECK` de forma portável: a 0002 **reconstrói** a tabela (`CREATE TABLE turnos_nova` com o
+altera `CHECK` de forma portável: a 0003 **reconstrói** a tabela (`CREATE TABLE turnos_nova` com o
 `CHECK` ampliado → `INSERT … SELECT` → `DROP TABLE turnos` → `ALTER TABLE turnos_nova RENAME TO
-turnos` → recria o índice), em transação. Teste de migration: base da 0001 com turnos → 0002 →
+turnos` → recria o índice), em transação. Teste de migration: base da 0002 com turnos → 0003 →
 mesmas linhas, e insert com `modo='treino'` passa.
 
 "Uma ativa por tenant" é garantido em transação (`UPDATE … SET ativa=0` + `INSERT … ativa=1`), não por
@@ -469,20 +489,22 @@ então chama `marcar {estado: "aplicada"}`. O agens nunca põe nota no prompt.
 **T-F9 — zerar.** Versão nova vazia (`origem = "zerado"`), todas as observações `rejeitada`, notas
 pendentes `descartada`. Sessões e mensagens ficam (auditoria) até a retenção.
 
-## 12. O que o sistema (Eliza) entrega — contrato 09
+## 12. O que o sistema (Eliza) entrega — contrato 10
 
-1. **Tela "Treinar atendente"** no painel (React, mesmo padrão da W9), visível para owner/admin com o
-   add-on ativo: chat da sessão, botão encerrar, "o que aprendi" (perfil ativo, aguardando evidência,
-   observações com rejeitar/restaurar), versões com "voltar", notas com aplicar/descartar, e a prévia.
-2. **Rotas do Eliza** (`/api/atendente/treino/*`) que conferem sessão do usuário, papel e org, montam
-   a asserção (§4), assinam com `ATENDENTE_TREINO_SECRET` e repassam ao agens. O navegador nunca
-   fala com o agens nem vê o segredo.
-3. **Ticket de visitante** (W2 da rodada 4) emitido pelas rotas acima para ensaio e prévia.
-4. **Aplicar nota** = acrescentar o texto em `autoatendimento_config.instrucoes_atendimento`
-   (respeitando o limite de 2.000) e marcar no agens.
-5. **Envios automáticos não são intervenção humana:** o Eliza registra o `key.id` das mensagens que
-   ele mesmo envia (lembrete, aviso de status, ficha) e não as encaminha como `deMim`. Não é do
-   treino, mas entra no mesmo contrato 09 (achado do 1º teste real, 27/10).
+Contratado em `Eliza/docs/contratos/autoatendimento/10-treino-do-atendente.md`. Em resumo:
+
+1. **Página `/configuracoes/atendente`** (owner/admin, add-on ativo) com cinco abas: Treinar, O que
+   aprendi, Versões, Notas e Prévia (C28).
+2. **Server actions** que conferem usuário, papel e org, montam a asserção (§4) com
+   `ATENDENTE_TREINO_SECRET` e chamam esta API; o navegador nunca fala com o agens nem vê segredo ou
+   ticket (C29, C31).
+3. **Ticket de visitante** (contrato 08) novo por chamada, para ensaio e prévia (C33).
+4. **Aplicar nota** = acrescentar `- {texto}` em `instrucoes_atendimento` (limite 2.000), depois
+   marcar aqui; idempotente (C34).
+
+Os envios automáticos do Eliza (lembrete, notificação) que pausavam o atendente **não** são deste
+contrato: estão na **A11** (contrato 09 do Eliza), que manda o eco como `aviso` e guarda o texto na
+memória sem pausar.
 
 ## 13. Decisões desta spec (para revisão)
 
