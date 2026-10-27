@@ -172,11 +172,32 @@ Detalhe, alternativas e motivos em [docs/RODADA-4-CANAL-WEB-MARCAR.md](docs/RODA
 |---|---|---|
 | A11 | **O sistema continua dono dos lembretes e notificações e avisa o agens pelo eco.** O Eliza pré-registra cada envio automático (org + hash do texto) antes de mandar; quando o eco `deMim` volta, encaminha com `aviso: { tipo }`. O agens guarda o texto na memória (papel `aviso`), **sem pausar** e sem responder | Corrige o lembrete pausando a conversa por 12 h como se fosse a equipe (achado no 1º teste em produção, 26/10). Contrato: `Eliza/docs/contratos/autoatendimento/09-avisos-do-sistema.md` (C22–C27, lado do agens na §7). Descartado: o agens assumir os lembretes (exigiria iniciar conversa sem ticket, e orgs sem o add-on continuam precisando do cron). Vale para os próximos sistemas: quem envia mensagem automática pelo mesmo número marca o envio da mesma forma |
 
+### Fechadas — rodada 5 (27/10/2026, com o Sérgio): modo de treinamento (F2c)
+
+Detalhe, alternativas e motivos em [docs/RODADA-5-TREINAMENTO.md](docs/RODADA-5-TREINAMENTO.md); contrato em
+[specs/06-treinamento.md](specs/06-treinamento.md). Revê a B4.
+
+| # | Decisão |
+|---|---|
+| T1 | Treino por **chat no painel** do sistema; nada pelo WhatsApp |
+| T2 | **Asserção HMAC do sistema** com tenant, operador e papel; só owner/admin |
+| T3 | Formato de **ensaio**: o agens faz o cliente, o operador responde como responderia |
+| T4 | Aprende um **perfil de estilo estruturado** com evidência por item |
+| T5 | **Automático só de estilo**: versão nova entra sozinha; item novo exige 2 sessões ou declaração; **fato nunca entra sozinho** (vira nota) |
+| T6 | v1 aprende **só da conversa de treino**; respostas reais da equipe (`deMim`) = v2 com LGPD |
+| T7 | Perfil, sessões e observações na **base do agens** por `agente + tenant` |
+| T8 | Seção `ESTILO DO ESTABELECIMENTO` antes da regra de segurança, teto ~500 tokens |
+| T9 | Perfil ativo **substitui o `tom`** do sistema; persona, respostas fixas e política seguem do sistema |
+| T10 | **Prévia** com o catálogo real só para leitura antes de valer |
+| T11 | Extração com **saída estruturada**; a fusão é do código |
+| T12 | Fase **F2c, depois da F2a**, reaproveitando o turno síncrono e o chat React |
+
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 
-> **Em rediscussão na rodada 5 (27/10/2026):** [docs/RODADA-5-TREINAMENTO.md](docs/RODADA-5-TREINAMENTO.md)
-> (T1–T12). O pedido muda dois pontos deste rascunho: aprimoramento **automático** de estilo (T5) e
-> o formato de ensaio (T3). Até a rodada fechar, este rascunho vale só como histórico.
+> **Substituído pela rodada 5 (27/10/2026):** [docs/RODADA-5-TREINAMENTO.md](docs/RODADA-5-TREINAMENTO.md)
+> (T1–T12, fechadas) e contrato [specs/06-treinamento.md](specs/06-treinamento.md) (TO-BE, fase F2c).
+> Mudou em relação a este rascunho: aprimoramento **automático** de estilo (T5) e formato de ensaio
+> (T3). O texto abaixo fica só como histórico.
 
 **O que é:** um modo de conversa em que o interlocutor é o **operador** (o usuário do sistema, ex.: a
 dona do salão no Eliza), não o cliente final. O agens conduz uma entrevista guiada e, ao fim, gera um
