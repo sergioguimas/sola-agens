@@ -69,7 +69,7 @@ func LoadConfigFrom(lookup lookupFunc) (*Config, error) {
 		AgentsDir:    getenvOr(lookup, "AGENS_AGENTES_DIR", "./agentes"),
 		TZ:           getenvOr(lookup, "AGENS_TZ", "America/Sao_Paulo"),
 		GeminiAPIKey: getenvOr(lookup, "GEMINI_API_KEY", ""),
-		Model:        getenvOr(lookup, "AGENS_MODEL", "gemini-2.5-flash"),
+		Model:        getenvOr(lookup, "AGENS_MODEL", "gemini-3.6-flash"),
 		AdminToken:   getenvOr(lookup, "AGENS_ADMIN_TOKEN", ""),
 		GroqAPIKey:   getenvOr(lookup, "GROQ_API_KEY", ""),
 		Precos:       map[string]string{},

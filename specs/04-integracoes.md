@@ -56,7 +56,7 @@ Copiado do Smaug (`redmilab/servicos/smaug/specs/04 §2` e `internal/llm`): REST
 `thinkingConfig.thinkingBudget = 0`, `temperature = 0`, retry em 429/5xx respeitando `Retry-After`,
 interface `llm.Provider` com `fake` roteirizado.
 
-- **Modelo:** `gemini-2.5-flash` (A2), sobrescrevível por agente.
+- **Modelo:** `gemini-3.6-flash` (A9, revê a A2), sobrescrevível por agente.
 - **Plano pago obrigatório** (o gratuito pode usar o conteúdo). A chave é da conta Sola com
   faturamento ativo.
 - **Tokens:** `usageMetadata.promptTokenCount` e `candidatesTokenCount` de cada chamada, somados no

@@ -154,7 +154,7 @@ limites:
   memoria_horas: 24
   audio_max_s: 120
   turno_timeout_s: 90
-# modelo: gemini-2.5-flash   # opcional; padrão AGENS_MODEL
+# modelo: gemini-3.6-flash   # opcional; padrão AGENS_MODEL
 ```
 
 Validação no boot: campos obrigatórios; envs referenciadas existem e não estão vazias; `id` único e

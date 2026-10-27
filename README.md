@@ -166,7 +166,7 @@ no Eliza de verdade nem manda WhatsApp. Rode **antes do aceite manual e a cada t
 GEMINI_API_KEY=... go run ./avaliacao                  # todos os cenários
 go run ./avaliacao -cenario 7                          # um só
 go run ./avaliacao -vezes 5                            # estabilidade: cada cenário 5 vezes
-go run ./avaliacao -modelo gemini-2.5-flash-lite       # compara outro modelo (padrão: AGENS_MODEL)
+go run ./avaliacao -modelo gemini-3.8-flash            # compara outro modelo (padrão: AGENS_MODEL)
 go run ./avaliacao -v                                  # mostra também as respostas ao cliente
 ```
 

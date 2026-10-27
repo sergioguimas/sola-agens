@@ -75,8 +75,9 @@ Herdadas da análise do Eliza e válidas para a plataforma inteira (com as revis
 CONTRATO §10):
 
 - **LLM:** Gemini em **plano pago** (o gratuito pode usar o conteúdo), raciocínio desligado,
-  **fastpath** determinístico na frente. Modelo padrão: ~~2.5 Flash-Lite~~ **2.5 Flash** (A2 — o
-  Flash-Lite falhou depois de resultado de ferramenta no Smaug, 29/09).
+  **fastpath** determinístico na frente. Modelo padrão: ~~2.5 Flash-Lite~~ ~~2.5 Flash~~ (A2 — o
+  Flash-Lite falhou depois de resultado de ferramenta no Smaug, 29/09) **3.6 Flash** (A9 — o 2.5 Flash
+  fez 10/17 na 1ª avaliação real, 26/10; o 3.6 fez 34/34).
 - **Base:** ~~schema `atendente` no Supabase do Eliza (E4)~~ **base própria do agens, multi-tenant
   (`agente + tenant`) desde o dia 1** (A1).
 - **Conector:** ~~cliente gerado da OpenAPI (E1)~~ **OpenAPI lida em tempo de execução** (A5).

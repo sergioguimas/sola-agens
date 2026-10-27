@@ -14,7 +14,11 @@ type preco struct{ Entrada, Saida float64 }
 
 // Valores iniciais (US$ por milhão de tokens). Conferir na página de preços do
 // Gemini antes do deploy; AGENS_PRECO_<MODELO> sobrescreve sem recompilar.
+// gemini-3.6-flash está com o preço cheio (vale a partir de 01/01/2027); a
+// promoção até 31/12/2026 (0,75/3,75) entra pelo .env, para a estimativa
+// nunca ficar abaixo do custo real quando ela acabar.
 var precosPadrao = map[string]preco{
+	"gemini-3.6-flash":      {1.50, 7.50},
 	"gemini-2.5-flash":      {0.30, 2.50},
 	"gemini-2.5-flash-lite": {0.10, 0.40},
 }

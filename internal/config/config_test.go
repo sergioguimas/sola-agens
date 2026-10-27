@@ -25,7 +25,7 @@ func TestDefaults(t *testing.T) {
 		{"AgentsDir", cfg.AgentsDir, "./agentes"},
 		{"TZ", cfg.TZ, "America/Sao_Paulo"},
 		{"LogDebug", cfg.LogDebug, false},
-		{"Model", cfg.Model, "gemini-2.5-flash"},
+		{"Model", cfg.Model, "gemini-3.6-flash"},
 		{"Temperature", cfg.Temperature, 0.0},
 		{"ThinkingBudget", cfg.ThinkingBudget, 0},
 		{"SistemaTimeout", cfg.SistemaTimeout, 10 * time.Second},

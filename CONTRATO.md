@@ -116,7 +116,7 @@ retomar conversa pausada; imagem e documento; réplicas do processo (B1); módul
 | # | Decisão | Consequência |
 |---|---|---|
 | A1 | **Multi-tenant desde o dia 1.** Toda linha da base é chaveada por `agente + tenant` (tenant = a conta do cliente dentro do sistema, ex.: a org do Eliza). Base **própria do agens**, nunca no banco de um sistema. Acesso à base e trava por conversa **atrás de interface** (`Store`, `Trava`) | Mais de um cliente do Eliza e mais de um sistema funcionam no mesmo processo sem mudar o schema. SQLite agora; Postgres entra como segunda implementação da interface quando houver mais de um processo (B1). Revê a E4 |
-| A2 | **Gemini 2.5 Flash**, temperatura 0, raciocínio 0 | ~US$ 0,015–0,03 por conversa. Revê a E3 |
+| A2 | ~~**Gemini 2.5 Flash**, temperatura 0, raciocínio 0~~ **Revista pela A9 (26/10)** | ~US$ 0,015–0,03 por conversa. Revê a E3 |
 | A3 | **Smaug é o molde, não uma dependência.** Os pacotes são copiados e o agens evolui separado; não há plano de módulo comum | Correção no Smaug só chega aqui se alguém trouxer na mão |
 | A4 | **Configuração em camadas: padrão do motor → sistema → tenant.** Cada sistema é dono da sua configuração; no agens só ficam os padrões de fallback e o registro de cada sistema (como achá-lo e autenticar) | Onde exatamente cada camada mora: B2 |
 | A5 | **OpenAPI lida em tempo de execução**: baixada no boot, cache, recarga por sinal | Spec inválida derruba o boot. Revê a E1 |
@@ -153,6 +153,12 @@ Detalhe, alternativas e motivos em [docs/RODADA-4-CANAL-WEB-MARCAR.md](docs/RODA
 | W8 | Liga por org: `autoatendimento_config.canal_web` (padrão `false`), exige também `ativo` |
 | W9 | UI em **React dentro do Eliza**; embed genérico só na F2b |
 | W10 | F2 dividida: **F2a** (`/marcar`) depois do aceite da F1; **F2b** (conhecimento estático + embed + site) em seguida |
+
+### Fechadas — avaliação com Gemini real (26/10/2026, com o Sérgio)
+
+| # | Decisão | Consequência |
+|---|---|---|
+| A9 | **Gemini 3.6 Flash**, temperatura 0, raciocínio 0. Revê a A2 (e, por ela, a E3) | Na 1ª bateria real (`go run ./avaliacao`, 17 cenários) o 2.5 Flash fez 10–11/17: respondia sem chamar ferramenta e perguntava o que já sabia. Com o prompt ajustado (0cac9a2): **3.6 Flash 34/34** (×2), 3.8 Flash 34/34 mas 6,5 s contra 3,9 s de latência média, 3.1 Flash-Lite 32/34 (falha o #8, número novo, que é de segurança). Preço pago: US$ 0,75/3,75 por milhão até 31/12/2026, **1,50/7,50 a partir de 01/01/2027** (~US$ 0,007 por turno hoje, ~0,015 depois). O 3.6 já é a geração anterior do Flash: quando for aposentado, trocar `AGENS_MODEL` e rodar a bateria de novo. Candidato seguinte: 3.8 Flash |
 
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 
