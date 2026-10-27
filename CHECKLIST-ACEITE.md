@@ -36,6 +36,8 @@ celular de teste no papel do cliente.
 | 22 | Mesma mensagem reentregue pela Evolution | um turno só; segunda entrega responde 202 | |
 | 23 | Persona e tom configurados no tenant | a resposta usa o nome e o tom | |
 | 24 | Agens fora do ar | Eliza cai no fluxo de palavra-chave; "sim" ao lembrete ainda confirma | |
+| 26 | Lembrete do Eliza com o agens no ar (depende do contrato 09 do Eliza) | log `aviso tipo=lembrete`; **não** pausa; "sim" logo depois confirma | |
+| 27 | Cliente responde ao lembrete pedindo outro horário (contrato 09) | o agens sabe de qual agendamento se trata e remarca sem perguntar qual | |
 
 ## Segurança
 

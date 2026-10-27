@@ -166,6 +166,12 @@ Detalhe, alternativas e motivos em [docs/RODADA-4-CANAL-WEB-MARCAR.md](docs/RODA
 |---|---|---|
 | A10 | **O agens entra na `proxy_net`**, a rede compartilhada de todos os apps da VPS, sem labels do Traefik e sem `ports:` | Sistema novo fala com o agens sem configurar rede (o agens é de todos os sistemas, o Eliza é só o piloto). Continua não público (A7 vale). Troca aceita: todo container da `proxy_net` alcança o agens, e o agens alcança todos; a proteção é a assinatura HMAC por agente na entrada e o token na rota de admin. Alternativa descartada: rede própria `agens_net`, em que cada sistema entraria explicitamente |
 
+### Fechada — avisos do sistema (26/10/2026, com o Sérgio)
+
+| # | Decisão | Consequência |
+|---|---|---|
+| A11 | **O sistema continua dono dos lembretes e notificações e avisa o agens pelo eco.** O Eliza pré-registra cada envio automático (org + hash do texto) antes de mandar; quando o eco `deMim` volta, encaminha com `aviso: { tipo }`. O agens guarda o texto na memória (papel `aviso`), **sem pausar** e sem responder | Corrige o lembrete pausando a conversa por 12 h como se fosse a equipe (achado no 1º teste em produção, 26/10). Contrato: `Eliza/docs/contratos/autoatendimento/09-avisos-do-sistema.md` (C22–C27, lado do agens na §7). Descartado: o agens assumir os lembretes (exigiria iniciar conversa sem ticket, e orgs sem o add-on continuam precisando do cron). Vale para os próximos sistemas: quem envia mensagem automática pelo mesmo número marca o envio da mesma forma |
+
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 
 **O que é:** um modo de conversa em que o interlocutor é o **operador** (o usuário do sistema, ex.: a
