@@ -39,6 +39,7 @@ const (
 	textoFeito       = "Feito! Mais alguma coisa?"
 	pedidoTextoFinal = "Escreva agora a resposta final ao cliente, só o texto. Não chame ferramentas."
 	prefixoEquipe    = "[equipe] "
+	prefixoAviso     = "[aviso automático enviado pelo estabelecimento] "
 	prazoCauda       = 30 * time.Second // envio, escalonamento e gravação depois do loop
 )
 
@@ -290,6 +291,8 @@ func (e *turnoExec) historico() ([]llm.Turn, *falha) {
 			role = "model"
 		case store.PapelHumano:
 			texto = prefixoEquipe + texto
+		case store.PapelAviso:
+			texto = prefixoAviso + texto
 		}
 		out = append(out, llm.Turn{Role: role, Parts: []llm.Part{{Text: texto}}})
 	}

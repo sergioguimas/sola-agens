@@ -215,6 +215,7 @@ func Rodar(t *testing.T, nova func(t *testing.T) store.Store) {
 			{Papel: store.PapelAgente, Conteudo: ptr("olá")},
 			{Papel: store.PapelHumano, Conteudo: ptr("atendo eu")},
 			{Papel: store.PapelCliente, Conteudo: nil, Anexos: anexos[:1]},
+			{Papel: store.PapelAviso, Conteudo: ptr("⏰ Lembrete: corte às 14h")},
 		} {
 			m.CriadaEm = base.Add(time.Duration(i) * time.Minute)
 			if err := s.AnexarMensagem(ctx, id, m); err != nil {
@@ -222,11 +223,11 @@ func Rodar(t *testing.T, nova func(t *testing.T) store.Store) {
 			}
 		}
 		got, err := s.Janela(ctx, id, 10, passado)
-		if err != nil || len(got) != 4 {
+		if err != nil || len(got) != 5 {
 			t.Fatalf("janela: %v len=%d", err, len(got))
 		}
-		if got[0].Papel != store.PapelCliente || got[1].Papel != store.PapelAgente || got[2].Papel != store.PapelHumano {
-			t.Errorf("papéis: %s %s %s", got[0].Papel, got[1].Papel, got[2].Papel)
+		if got[0].Papel != store.PapelCliente || got[1].Papel != store.PapelAgente || got[2].Papel != store.PapelHumano || got[4].Papel != store.PapelAviso {
+			t.Errorf("papéis: %s %s %s %s", got[0].Papel, got[1].Papel, got[2].Papel, got[4].Papel)
 		}
 		want := []mensagem.Anexo{
 			{Tipo: "audio", Mime: "audio/ogg", Tamanho: 1234, DuracaoS: 12, Encaminhado: true},

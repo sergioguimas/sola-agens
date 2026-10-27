@@ -273,3 +273,39 @@
         resposta_nao_contem: ["cancelei", "cancelados"]
   estado_final:
     agendamentos_novos: 0
+
+- id: 26
+  nome: "Lembrete do Eliza chega como aviso: não pausa e o \"sim\" confirma"
+  cliente: {situacao: identificado, primeiro_nome: Ana, nome_exibicao: Ana W}
+  agendamentos:
+    - {ref: ag1, status: scheduled, inicio: "2026-10-15T14:00", servico: corte, profissional: bia, aguardando: true}
+  rodadas:
+    - avisos: ["⏰ Lembrete: Corte amanhã (qui, 15/10) às 14:00 com a Bia. Responda SIM para confirmar."]
+      mensagens: ["sim"]
+      esperar:
+        fastpath: true
+        ferramentas_chamadas: [confirmarAgendamento]
+        nao_escalou: true
+  estado_final:
+    agendamentos:
+      - {ref: ag1, status: confirmed}
+
+- id: 27
+  nome: Cliente responde ao lembrete pedindo outro horário (sabe qual agendamento)
+  cliente: {situacao: identificado, primeiro_nome: Ana, nome_exibicao: Ana W}
+  agendamentos:
+    - {ref: ag1, status: scheduled, inicio: "2026-10-15T14:00", servico: corte, profissional: bia, aguardando: true}
+    - {ref: ag2, status: scheduled, inicio: "2026-10-20T15:00", servico: manicure, profissional: caio}
+  rodadas:
+    - avisos: ["⏰ Lembrete: Corte amanhã (qui, 15/10) às 14:00 com a Bia. Responda SIM para confirmar."]
+      mensagens: ["Não vou conseguir, dá pra passar pra sexta às 10h?"]
+      esperar:
+        ferramentas_chamadas: [remarcarAgendamento]
+        ferramentas_proibidas: [cancelarAgendamento, criarAgendamento]
+        nao_escalou: true
+        resposta_contem: ["aprova|pendente|aguard"]
+  estado_final:
+    agendamentos_novos: 0
+    agendamentos:
+      - {ref: ag1, status: pending, inicio_prefixo: "2026-10-16T10:00"}
+      - {ref: ag2, status: scheduled}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"sola-agens/internal/llm"
 	"sola-agens/internal/mensagem"
 	"sola-agens/internal/sistema"
 )
@@ -99,5 +100,52 @@ func TestDeMimNovaMensagemReiniciaOPrazo(t *testing.T) {
 	a.motor.DeMim(context.Background(), a.ag, conversaDeTeste, mensagem.Mensagem{ID: "h-2", Texto: "dois"})
 	if p := a.pausadaAte(); p == nil || !p.Equal(agoraFixo.Add(13*time.Hour)) {
 		t.Fatalf("pausada_ate = %v, quer agora+1h+12h", p)
+	}
+}
+
+// Aviso do sistema (lembrete do Eliza): vira contexto sem pausar e sem turno,
+// e o modelo o vê com o prefixo na próxima mensagem do cliente (A11).
+func TestDeMimAvisoNaoPausaEViraContexto(t *testing.T) {
+	a := novoAmb(t)
+	a.motor.Clock = func() time.Time { return agoraFixo }
+	msg := mensagem.Mensagem{ID: "lemb-1", Texto: "⏰ Lembrete: Corte às 14:00", Aviso: "lembrete"}
+	if err := a.motor.DeMim(context.Background(), a.ag, conversaDeTeste, msg); err != nil {
+		t.Fatal(err)
+	}
+	if p := a.pausadaAte(); p != nil {
+		t.Fatalf("aviso pausou a conversa até %v", p)
+	}
+	if want := []string{"aviso:⏰ Lembrete: Corte às 14:00"}; !reflect.DeepEqual(a.janela(), want) {
+		t.Errorf("memória = %v", a.janela())
+	}
+	if len(a.st.turnos) != 0 {
+		t.Error("aviso não gera turno")
+	}
+	contem(t, a.logs.String(), `"msg":"aviso"`)
+	contem(t, a.logs.String(), `"tipo":"lembrete"`)
+
+	a.motor.Clock = nil
+	a.llm.Respostas = []llm.GenerateResponse{llm.TextoResp("Claro! Para quando?")}
+	a.run("dá pra passar pra sexta?")
+	if len(a.llm.Reqs) == 0 {
+		t.Fatal("o cliente depois do aviso deveria ter resposta")
+	}
+	primeiro := a.llm.Reqs[0].Contents[0]
+	if primeiro.Role != "user" || primeiro.Parts[0].Text != "[aviso automático enviado pelo estabelecimento] ⏰ Lembrete: Corte às 14:00" {
+		t.Errorf("aviso no histórico = %+v", primeiro)
+	}
+}
+
+// Eco do próprio agens vence o aviso (nunca chega a ser gravado de novo).
+func TestDeMimEcoVenceAviso(t *testing.T) {
+	a := novoAmb(t)
+	if err := a.st.RegistrarEco(context.Background(), "eliza", "out-9"); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.motor.DeMim(context.Background(), a.ag, conversaDeTeste, mensagem.Mensagem{ID: "out-9", Texto: "x", Aviso: "notificacao"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.janela()) != 0 {
+		t.Errorf("eco com aviso foi para a memória: %v", a.janela())
 	}
 }

@@ -106,7 +106,7 @@ func (s *Store) AnexarMensagem(ctx context.Context, id store.ConversaID, m store
 		return err
 	}
 	switch m.Papel {
-	case store.PapelCliente, store.PapelAgente, store.PapelHumano:
+	case store.PapelCliente, store.PapelAgente, store.PapelHumano, store.PapelAviso:
 	default:
 		return store.ErrPapelInvalido
 	}

@@ -64,6 +64,16 @@ type MensagemEncaminhada struct {
 	DeMim    bool     `json:"deMim"`
 	Conteudo Conteudo `json:"conteudo"`
 	Ticket   *Ticket  `json:"ticket"`
+	// Aviso: só com deMim, envio automático do sistema (lembrete, notificação)
+	// que vira contexto sem pausar (A11, contrato 09 do Eliza). nil = cliente,
+	// eco do agens ou equipe.
+	Aviso *Aviso `json:"aviso"`
+}
+
+// Aviso marca um envio automático do sistema. O tipo não é validado contra
+// uma lista: o enum do sistema pode crescer sem quebrar o agens.
+type Aviso struct {
+	Tipo string `json:"tipo"`
 }
 
 // Entrada é a mensagem normalizada mais a identidade (specs/01 §1).
@@ -127,6 +137,9 @@ func (m *MensagemEncaminhada) Validar() error {
 	if m.Contato.Telefone == "" {
 		return bad("contato.telefone")
 	}
+	if m.Aviso != nil && !m.DeMim {
+		return bad("aviso sem deMim")
+	}
 	switch c := m.Conteudo; c.Tipo {
 	case "texto":
 		if c.Texto == "" {
@@ -174,6 +187,12 @@ func Normalizar(m MensagemEncaminhada) (Entrada, error) {
 	}
 	if m.Ticket != nil && !m.DeMim {
 		e.Ticket = m.Ticket.Token
+	}
+	if m.Aviso != nil {
+		e.Mensagem.Aviso = m.Aviso.Tipo
+		if e.Mensagem.Aviso == "" {
+			e.Mensagem.Aviso = "outro"
+		}
 	}
 	return e, nil
 }

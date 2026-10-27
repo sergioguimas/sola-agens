@@ -174,7 +174,7 @@ CREATE TABLE mensagens (
   agente     TEXT NOT NULL,
   tenant     TEXT NOT NULL,
   contato    TEXT NOT NULL,
-  papel      TEXT NOT NULL CHECK (papel IN ('cliente','agente','humano')),
+  papel      TEXT NOT NULL CHECK (papel IN ('cliente','agente','humano','aviso')),  -- 'aviso' desde a 0002 (A11)
   conteudo   TEXT,                    -- NULL depois da retenção
   anexos     TEXT,                    -- JSON de []Anexo sem Ref
   criada_em  INTEGER NOT NULL

@@ -65,6 +65,10 @@ Erro **de regra** (4xx fora da lista) não é F2: volta ao LLM como dado (02 §2
 ## F3 — Intervenção humana (`deMim`)
 
 1. `EhEco(agente, mensagemId)` → ignora (log `eco`), fim.
+1a. `aviso` no corpo (envio automático do sistema: lembrete, notificação — A11, contrato 09 do Eliza) →
+   cria a conversa se não existe, grava o texto com `papel=aviso` (o modelo o vê como
+   `[aviso automático enviado pelo estabelecimento] ...`), log `aviso tipo=<tipo>`; **sem pausa e sem
+   turno**, fim.
 2. Senão: `pausaHumanaHoras` de `conversas.config_json` ou padrão (12 h) → `Pausar(agora + h)`.
 3. Se o corpo trouxe texto, grava na memória com `papel=humano` (o agens, ao voltar, sabe o que a
    equipe disse).
@@ -116,6 +120,7 @@ Turno interrompido no meio fica sem resposta (o evento já foi marcado; aceito e
 | Assinatura ou timestamp inválidos | F1 passos 3–4 |
 | Duplicada | F1 passo 6 |
 | Eco do próprio agens | F3 passo 1 |
+| Aviso do sistema (lembrete, notificação) | F3 passo 1a (vira contexto) |
 | `deMim` da equipe | F3 (pausa) |
 | Conversa pausada | F1 passo 10 |
 | Ticket inválido no contexto | F1 passo 13 |

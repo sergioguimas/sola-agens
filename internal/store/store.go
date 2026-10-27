@@ -16,6 +16,8 @@ const (
 	PapelCliente = "cliente"
 	PapelAgente  = "agente"
 	PapelHumano  = "humano"
+	// PapelAviso: envio automático do sistema (lembrete, notificação), só contexto (A11).
+	PapelAviso = "aviso"
 )
 
 // Modos de um turno (specs/01 §8).

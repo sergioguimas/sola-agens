@@ -57,7 +57,10 @@ type Persona struct {
 }
 
 // Rodada é um turno: as mensagens do cliente que o debounce juntaria.
+// Avisos são envios automáticos do sistema (lembrete) que chegam antes, pelo
+// DeMim, como o eco com `aviso` do Eliza (A11).
 type Rodada struct {
+	Avisos    []string `yaml:"avisos"`
 	Mensagens []string `yaml:"mensagens"`
 	Esperar   Esperar  `yaml:"esperar"`
 }

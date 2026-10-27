@@ -105,6 +105,24 @@ func TestNormalizar(t *testing.T) {
 			t.Errorf("anexos = %+v", a)
 		}
 	})
+	t.Run("aviso do sistema", func(t *testing.T) {
+		m := base()
+		m.DeMim = true
+		m.Conteudo = Conteudo{Tipo: "texto", Texto: "lembrete"}
+		m.Aviso = &Aviso{Tipo: "lembrete"}
+		e, err := Normalizar(m)
+		if err != nil || e.Mensagem.Aviso != "lembrete" {
+			t.Errorf("aviso = %q err=%v", e.Mensagem.Aviso, err)
+		}
+		m.Aviso = &Aviso{Tipo: "tipo_novo_do_sistema"}
+		if e, err := Normalizar(m); err != nil || e.Mensagem.Aviso != "tipo_novo_do_sistema" {
+			t.Errorf("tipo desconhecido deve ser aceito: %q err=%v", e.Mensagem.Aviso, err)
+		}
+		m.Aviso = nil
+		if e, _ := Normalizar(m); e.Mensagem.Aviso != "" {
+			t.Errorf("sem aviso = %q", e.Mensagem.Aviso)
+		}
+	})
 	t.Run("deMim zera o ticket", func(t *testing.T) {
 		m := base()
 		m.DeMim = true
@@ -119,14 +137,15 @@ func TestNormalizar(t *testing.T) {
 
 func TestValidar(t *testing.T) {
 	cases := map[string]func(*MensagemEncaminhada){
-		"versao":         func(m *MensagemEncaminhada) { m.Versao = 2 },
-		"mensagemId":     func(m *MensagemEncaminhada) { m.MensagemID = "" },
-		"recebidaEm":     func(m *MensagemEncaminhada) { m.RecebidaEm = "ontem" },
-		"organizacao":    func(m *MensagemEncaminhada) { m.Organizacao.ID = "" },
-		"telefone":       func(m *MensagemEncaminhada) { m.Contato.Telefone = "" },
-		"tipo":           func(m *MensagemEncaminhada) { m.Conteudo.Tipo = "video" },
-		"texto vazio":    func(m *MensagemEncaminhada) { m.Conteudo = Conteudo{Tipo: "texto"} },
-		"áudio sem mime": func(m *MensagemEncaminhada) { m.Conteudo = Conteudo{Tipo: "audio", DuracaoS: 1} },
+		"versao":          func(m *MensagemEncaminhada) { m.Versao = 2 },
+		"mensagemId":      func(m *MensagemEncaminhada) { m.MensagemID = "" },
+		"recebidaEm":      func(m *MensagemEncaminhada) { m.RecebidaEm = "ontem" },
+		"organizacao":     func(m *MensagemEncaminhada) { m.Organizacao.ID = "" },
+		"telefone":        func(m *MensagemEncaminhada) { m.Contato.Telefone = "" },
+		"tipo":            func(m *MensagemEncaminhada) { m.Conteudo.Tipo = "video" },
+		"texto vazio":     func(m *MensagemEncaminhada) { m.Conteudo = Conteudo{Tipo: "texto"} },
+		"áudio sem mime":  func(m *MensagemEncaminhada) { m.Conteudo = Conteudo{Tipo: "audio", DuracaoS: 1} },
+		"aviso sem deMim": func(m *MensagemEncaminhada) { m.Aviso = &Aviso{Tipo: "lembrete"} },
 	}
 	for nome, mut := range cases {
 		m := base()

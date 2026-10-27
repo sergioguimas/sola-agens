@@ -171,6 +171,12 @@ func (b *Bancada) Rodar(ctx context.Context, c Cenario, rep int) Resultado {
 
 	seq := 0
 	for i, rd := range c.Rodadas {
+		for _, av := range rd.Avisos {
+			seq++
+			if err := b.motor.DeMim(ctx, b.ag, id, mensagem.Mensagem{ID: fmt.Sprintf("av-%d-%d", n, seq), Texto: av, Aviso: "lembrete"}); err != nil {
+				res.Falhas = append(res.Falhas, fmt.Sprintf("R%d: aviso: %v", i+1, err))
+			}
+		}
 		msgs := make([]mensagem.Mensagem, len(rd.Mensagens))
 		for j, tx := range rd.Mensagens {
 			seq++

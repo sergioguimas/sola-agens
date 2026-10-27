@@ -19,6 +19,10 @@ type Mensagem struct {
 	// áudio. DECISÃO (fase 5): o ticket viaja dentro da Mensagem, assim entrada,
 	// debounce e Turno guardam um por mensagem sem mudar de assinatura.
 	Ticket string
+
+	// Aviso é o tipo do envio automático do sistema ("lembrete",
+	// "notificacao"...) quando o deMim é um aviso (A11); vazio nos demais.
+	Aviso string
 }
 
 // Anexo de uma mensagem. O agens nunca guarda o arquivo.
