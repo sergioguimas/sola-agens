@@ -3,6 +3,8 @@ package transcricao
 import (
 	"context"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -270,5 +272,39 @@ func TestGroqTranscritor_ErroGrandeAindaRetenta(t *testing.T) {
 	texto, _, err := tr.Transcrever(context.Background(), []byte{0x01}, "audio/ogg", "pt")
 	if err != nil || texto != "olá" || calls != 2 {
 		t.Fatalf("texto = %q, err = %v, calls = %d; want sucesso na 2ª tentativa", texto, err, calls)
+	}
+}
+
+// TestGroqTranscritor_MimeInvalidoNaoSai: mimetype com CRLF (header extra na
+// parte) é recusado antes de qualquer chamada.
+func TestGroqTranscritor_MimeInvalidoNaoSai(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++ }))
+	defer srv.Close()
+
+	tr := &groqTranscritor{apiKey: "k", modelo: "m", url: srv.URL, httpClient: srv.Client(), sleep: (&fakeSleeperGroq{}).sleep}
+	for _, mt := range []string{"audio/ogg\r\nX-Injetado: 1", "nao e mime"} {
+		if _, _, err := tr.Transcrever(context.Background(), []byte{0x01}, mt, "pt"); err == nil {
+			t.Errorf("mime %q: esperava erro", mt)
+		}
+	}
+	if calls != 0 {
+		t.Fatalf("calls = %d, want 0", calls)
+	}
+}
+
+func TestMontarMultipart_MimeNormalizado(t *testing.T) {
+	body, ct, err := montarMultipart([]byte{0x01}, "Audio/OGG; codecs=opus", "m", "pt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, params, _ := mime.ParseMediaType(ct)
+	r := multipart.NewReader(body, params["boundary"])
+	p, err := r.NextPart()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Header.Get("Content-Type"); got != "audio/ogg; codecs=opus" {
+		t.Fatalf("Content-Type = %q", got)
 	}
 }

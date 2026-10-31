@@ -3,8 +3,10 @@ package transcricao
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -182,11 +184,22 @@ func montarMultipart(audio []byte, mimetype, modelo, idioma string) (*bytes.Buff
 // createFilePart e multipart.Writer.CreateFormFile, mas com o
 // Content-Type do arquivo explicito (CreateFormFile fixa sempre
 // application/octet-stream) — o Groq espera o mimetype real do audio.
+// O mimetype vem do sistema: e validado e reescrito (mime.ParseMediaType +
+// FormatMediaType) porque o multipart.Writer grava o header sem escapar, e um
+// \r\n no valor abriria headers extras na parte.
 func createFilePart(w *multipart.Writer, fieldname, filename, contentType string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldname, filename))
 	if contentType != "" {
-		h.Set("Content-Type", contentType)
+		mt, params, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			return nil, fmt.Errorf("mimetype inválido: %w", err)
+		}
+		ct := mime.FormatMediaType(mt, params)
+		if ct == "" {
+			return nil, errors.New("mimetype inválido")
+		}
+		h.Set("Content-Type", ct)
 	}
 	return w.CreatePart(h)
 }
