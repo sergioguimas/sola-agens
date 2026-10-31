@@ -16,6 +16,10 @@ import (
 // timeoutGroq e o prazo por chamada (specs/04 §2.6).
 const timeoutGroq = 90 * time.Second
 
+// maxRespostaGroq limita o corpo lido da resposta (texto puro): 1 MB cobre com
+// folga a transcricao de um audio dentro de audio_max_s.
+const maxRespostaGroq = 1 << 20
+
 // backoffsGroq: mesma tabela de espera de internal/llm/gemini/retry.go
 // (specs/04 §2.4: 1s, 2s, 4s, 8s — 5 tentativas no total).
 //
@@ -107,11 +111,14 @@ func (g *groqTranscritor) Transcrever(ctx context.Context, audio []byte, mimetyp
 		if doErr != nil {
 			lastErr = doErr
 		} else {
-			respBody, readErr := io.ReadAll(resp.Body)
+			respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, maxRespostaGroq+1))
 			resp.Body.Close()
 			if readErr != nil {
 				lastErr = readErr
 			} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				if len(respBody) > maxRespostaGroq {
+					return "", Uso{}, fmt.Errorf("transcricao: groq status %d com resposta grande demais", resp.StatusCode)
+				}
 				return strings.TrimSpace(string(respBody)), Uso{}, nil
 			} else if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusBadRequest {
 				return "", Uso{}, fmt.Errorf("transcricao: groq status %d", resp.StatusCode)

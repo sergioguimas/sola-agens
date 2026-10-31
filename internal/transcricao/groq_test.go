@@ -229,3 +229,46 @@ func TestMontarMultipart_ContentTypeVazioNaoQuebra(t *testing.T) {
 		t.Error("corpo vazio")
 	}
 }
+
+// TestGroqTranscritor_RespostaGrande: corpo acima de maxRespostaGroq é recusado sem retry.
+func TestGroqTranscritor_RespostaGrande(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_, _ = w.Write(make([]byte, maxRespostaGroq+1))
+	}))
+	defer srv.Close()
+
+	fs := &fakeSleeperGroq{}
+	tr := &groqTranscritor{apiKey: "k", modelo: "m", url: srv.URL, httpClient: srv.Client(), sleep: fs.sleep}
+
+	if _, _, err := tr.Transcrever(context.Background(), []byte{0x01}, "audio/ogg", "pt"); err == nil {
+		t.Fatal("esperava erro")
+	}
+	if calls != 1 || len(fs.waited) != 0 {
+		t.Fatalf("calls = %d, waited = %v; want 1 chamada sem espera", calls, fs.waited)
+	}
+}
+
+// TestGroqTranscritor_ErroGrandeAindaRetenta: corpo grande num 503 segue o retry.
+func TestGroqTranscritor_ErroGrandeAindaRetenta(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write(make([]byte, maxRespostaGroq+1))
+			return
+		}
+		_, _ = w.Write([]byte("olá"))
+	}))
+	defer srv.Close()
+
+	fs := &fakeSleeperGroq{}
+	tr := &groqTranscritor{apiKey: "k", modelo: "m", url: srv.URL, httpClient: srv.Client(), sleep: fs.sleep}
+
+	texto, _, err := tr.Transcrever(context.Background(), []byte{0x01}, "audio/ogg", "pt")
+	if err != nil || texto != "olá" || calls != 2 {
+		t.Fatalf("texto = %q, err = %v, calls = %d; want sucesso na 2ª tentativa", texto, err, calls)
+	}
+}

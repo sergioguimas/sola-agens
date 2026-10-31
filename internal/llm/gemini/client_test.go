@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -188,5 +189,52 @@ func TestGenerate_TimeoutViaCtxCancelado(t *testing.T) {
 	_, err := c.Generate(ctx, llm.GenerateRequest{Model: "m"})
 	if err == nil {
 		t.Fatal("esperava erro por ctx cancelado")
+	}
+}
+
+// Resposta acima de maxResposta é recusada sem retry (cada tentativa custa).
+func TestGenerate_RespostaGrandeSemRetry(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(make([]byte, maxResposta+1))
+	}))
+	defer srv.Close()
+
+	c := NewClient("chave", nil, nopLogger())
+	c.BaseURL = srv.URL
+	fs := &fakeSleeper{}
+	c.sleep = fs.sleep
+
+	_, err := c.Generate(context.Background(), llm.GenerateRequest{Model: "m"})
+	if !errors.Is(err, llm.ErrLLMIndisponivel) || !errors.Is(err, errRespostaGrande) {
+		t.Fatalf("err = %v, want ErrLLMIndisponivel com errRespostaGrande", err)
+	}
+	if calls != 1 || len(fs.waited) != 0 {
+		t.Fatalf("calls = %d, waited = %v; want 1 chamada sem espera", calls, fs.waited)
+	}
+}
+
+// Corpo grande num 503 não muda a regra: o status decide o retry.
+func TestGenerate_ErroGrandeAindaRetenta(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write(make([]byte, maxResposta+1))
+			return
+		}
+		_, _ = w.Write([]byte(okBody))
+	}))
+	defer srv.Close()
+
+	c := NewClient("chave", nil, nopLogger())
+	c.BaseURL = srv.URL
+	c.sleep = (&fakeSleeper{}).sleep
+
+	if _, err := c.Generate(context.Background(), llm.GenerateRequest{Model: "m"}); err != nil || calls != 2 {
+		t.Fatalf("err = %v, calls = %d; want sucesso na 2ª tentativa", err, calls)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,6 +21,14 @@ import (
 
 // defaultBaseURL e o endpoint padrao da API Gemini v1beta (specs/04 §2.1).
 const defaultBaseURL = "https://generativelanguage.googleapis.com/v1beta"
+
+// maxResposta limita o corpo lido de uma resposta: texto e chamadas de
+// ferramenta cabem com folga em 8 MB; acima disso a resposta e recusada em vez
+// de ocupar memoria sem limite.
+const maxResposta = 8 << 20
+
+// errRespostaGrande e devolvido quando o corpo passa de maxResposta.
+var errRespostaGrande = errors.New("gemini: resposta grande demais")
 
 // Client fala REST cru com a API Gemini.
 type Client struct {
@@ -74,9 +83,17 @@ func (c *Client) doOnce(ctx context.Context, url string, raw []byte) (attemptRes
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResposta+1))
 	if err != nil {
 		return attemptResult{status: resp.StatusCode}, err
+	}
+	// So o 2xx e usado inteiro; num erro o corpo truncado basta para a mensagem
+	// e o status segue decidindo o retry.
+	if len(body) > maxResposta {
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			return attemptResult{status: resp.StatusCode}, errRespostaGrande
+		}
+		body = body[:maxResposta]
 	}
 	return attemptResult{status: resp.StatusCode, body: body, retryAfter: resp.Header.Get("Retry-After")}, nil
 }
@@ -115,6 +132,11 @@ func (c *Client) Generate(ctx context.Context, req llm.GenerateRequest) (*llm.Ge
 			msg := errorMessage(res.body)
 			c.logger.Error("llm", "evt", "llm", "modelo", req.Model, "status", res.status, "erro", msg)
 			return nil, &llm.ErrLLMDefinitivo{Status: res.status, Msg: msg}
+		}
+
+		// Resposta grande demais nao melhora tentando de novo, e cada tentativa custa.
+		if errors.Is(doErr, errRespostaGrande) {
+			return nil, fmt.Errorf("%w: %w", llm.ErrLLMIndisponivel, doErr)
 		}
 
 		retryable := doErr != nil || retryableStatus(res.status)
