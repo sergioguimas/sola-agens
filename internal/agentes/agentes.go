@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // Modos de identidade (specs/01 §2). Só Encaminhado é suportado na F1.

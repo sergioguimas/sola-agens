@@ -7,8 +7,8 @@ toolchain go1.26.10
 require (
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/text v0.43.0
-	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.61.1
 )
 

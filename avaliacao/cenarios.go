@@ -10,8 +10,8 @@ import (
 	"time"
 	"unicode"
 
+	"go.yaml.in/yaml/v3"
 	"golang.org/x/text/unicode/norm"
-	"gopkg.in/yaml.v3"
 )
 
 //go:embed cenarios.yaml
