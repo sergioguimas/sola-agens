@@ -34,6 +34,10 @@ const (
 
 var idRe = regexp.MustCompile(`^[a-z][a-z0-9-]{1,31}$`)
 
+// MinSegredo é o tamanho mínimo do segredo HMAC da entrada: 32 caracteres
+// (128 bits em hex). O .env.example gera 64 com `openssl rand -hex 32`.
+const MinSegredo = 32
+
 // Entrada: como autenticar o que chega do sistema.
 type Entrada struct {
 	SegredoEnv       string `yaml:"segredo_env"`
@@ -235,6 +239,10 @@ func (a *Agente) validar(lookup func(string) (string, bool)) error {
 	var err error
 	if a.segredo, err = env(a.Entrada.SegredoEnv, "entrada.segredo_env"); err != nil {
 		return err
+	}
+	if len(a.segredo) < MinSegredo {
+		return fmt.Errorf("entrada.segredo_env: env %s curta demais (mínimo %d caracteres; gere com openssl rand -hex 32)",
+			a.Entrada.SegredoEnv, MinSegredo)
 	}
 	if a.baseURL, err = env(a.Sistema.BaseURLEnv, "sistema.base_url_env"); err != nil {
 		return err
