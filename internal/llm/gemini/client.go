@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"sola-agens/internal/llm"
+	"sola-agens/internal/saida"
 )
 
 // defaultBaseURL e o endpoint padrao da API Gemini v1beta (specs/04 §2.1).
@@ -33,12 +34,12 @@ type Client struct {
 
 var _ llm.Provider = (*Client)(nil)
 
-// NewClient cria um cliente Gemini. httpClient nil usa um *http.Client{}
-// padrao (sem timeout global — quem limita e o ctx de cada chamada,
+// NewClient cria um cliente Gemini. httpClient nil usa saida.Cliente(0)
+// (sem redirect e sem timeout global — quem limita e o ctx de cada chamada,
 // specs/04 §2.4).
 func NewClient(apiKey string, httpClient *http.Client, logger *slog.Logger) *Client {
 	if httpClient == nil {
-		httpClient = &http.Client{}
+		httpClient = saida.Cliente(0)
 	}
 	if logger == nil {
 		logger = slog.Default()

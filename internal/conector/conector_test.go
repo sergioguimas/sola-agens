@@ -306,3 +306,29 @@ func TestParaLLM(t *testing.T) {
 		t.Errorf("m = %v", m)
 	}
 }
+
+// Redirect para outro host não é seguido: o ticket não sai do sistema e o
+// turno aborta com o 3xx (NAO_ENVELOPE).
+func TestRedirectParaOutroHostAborta(t *testing.T) {
+	var vazou atomic.Int32
+	fora := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Autoatendimento-Ticket") != "" {
+			vazou.Add(1)
+		}
+	}))
+	defer fora.Close()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, fora.URL+"/roubar", http.StatusFound)
+	}))
+	defer srv.Close()
+
+	h := NovoHTTP(Config{BaseURL: srv.URL, Token: "tok", HeaderTicket: "X-Autoatendimento-Ticket"}, 2*time.Second)
+	_, err := h.Executar(context.Background(), ferr(http.MethodGet, "/x", false, nil), nil, Identidade{Ticket: "tk"})
+	var ab *ErrAbortar
+	if !errors.As(err, &ab) || ab.Code != "NAO_ENVELOPE" || ab.Status != http.StatusFound {
+		t.Fatalf("err = %v, quer ErrAbortar NAO_ENVELOPE 302", err)
+	}
+	if vazou.Load() != 0 {
+		t.Fatal("ticket enviado ao host do redirect")
+	}
+}
