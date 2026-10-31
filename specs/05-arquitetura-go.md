@@ -41,7 +41,7 @@ sola-agens/
 ```
 
 Dependências diretas (todas puro Go): `modernc.org/sqlite`, `github.com/joho/godotenv`,
-`github.com/google/uuid` (v7), `golang.org/x/text` (normalização), `gopkg.in/yaml.v3` (registro).
+`github.com/google/uuid` (v7), `golang.org/x/text` (normalização), `go.yaml.in/yaml/v3` (registro; continuação mantida do antigo `gopkg.in/yaml.v3`).
 Nada de framework HTTP, ORM, SDK do Google nem biblioteca de OpenAPI: o subconjunto que o conversor
 usa é pequeno e o golden trava o comportamento.
 
