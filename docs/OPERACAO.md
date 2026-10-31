@@ -12,11 +12,12 @@ container). Obrigatórias para subir:
 |---|---|
 | `GEMINI_API_KEY` | chave do Gemini, **plano pago** (o gratuito pode usar o conteúdo) |
 | `ELIZA_BASE_URL` | URL do Eliza na rede Docker (ver [Ligar ao Eliza](#ligar-ao-eliza)) |
-| `ELIZA_ENCAMINHAMENTO_SECRET` | segredo da assinatura do que o Eliza encaminha (`openssl rand -hex 32`) |
+| `ELIZA_ENCAMINHAMENTO_SECRET` | segredo da assinatura do que o Eliza encaminha (`openssl rand -hex 32`; mínimo 32 caracteres) |
 | `ELIZA_AUTOATENDIMENTO_API_TOKEN` | token de serviço do Eliza |
 
 Todo o resto tem padrão. `AGENS_ADMIN_TOKEN` vazio desliga a rota de apagamento (veja
-[Retenção e apagamento](#retenção-e-apagamento)). Sem as obrigatórias o processo não sobe e diz qual falta.
+[Retenção e apagamento](#retenção-e-apagamento)); preenchido, precisa de no mínimo 32 caracteres. Sem as
+obrigatórias, ou com um segredo curto demais, o processo não sobe e diz qual variável corrigir.
 
 **`agentes/*.yaml`**: um arquivo por sistema atendido (hoje só `eliza.yaml`): segredo e token por nome de
 env, onde está a OpenAPI, quais operações o motor usa, política de mídia e limites. Formato e campos em

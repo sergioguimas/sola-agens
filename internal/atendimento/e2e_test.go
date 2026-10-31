@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	segredo  = "segredo-de-teste"
+	segredo  = "segredo-de-teste-0123456789abcdef0123"
 	tokenSvc = "token-de-servico"
 	ticket   = "ticket-abc"
 	prefixo  = "/api/v1/autoatendimento"

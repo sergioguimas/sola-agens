@@ -32,7 +32,7 @@ midia:
 `
 
 func env() func(string) (string, bool) {
-	m := map[string]string{"SEG": "segredo-x", "URL": "http://eliza:3000/", "TOK": "token-y"}
+	m := map[string]string{"SEG": "segredo-x-0123456789abcdef0123456789abcdef", "URL": "http://eliza:3000/", "TOK": "token-y"}
 	return func(k string) (string, bool) { v, ok := m[k]; return v, ok }
 }
 
@@ -51,7 +51,7 @@ func TestCarregarValido(t *testing.T) {
 		t.Fatalf("err=%v n=%d", err, len(ags))
 	}
 	a := ags[0]
-	if a.Segredo() != "segredo-x" || a.BaseURL() != "http://eliza:3000" || a.Token() != "token-y" {
+	if a.Segredo() != "segredo-x-0123456789abcdef0123456789abcdef" || a.BaseURL() != "http://eliza:3000" || a.Token() != "token-y" {
 		t.Errorf("valores resolvidos errados: %q %q %q", a.Segredo(), a.BaseURL(), a.Token())
 	}
 	if a.Limites.MaxIter != 8 || a.Limites.RajadaMs != 3000 || a.Limites.RajadaMaxMs != 8000 ||
@@ -152,9 +152,23 @@ func TestIDDuplicadoEDirVazio(t *testing.T) {
 
 // O yaml real do repositório precisa carregar com as envs do .env.example.
 func TestElizaYamlDoRepo(t *testing.T) {
-	m := map[string]string{"ELIZA_ENCAMINHAMENTO_SECRET": "s", "ELIZA_BASE_URL": "http://eliza:3000", "ELIZA_AUTOATENDIMENTO_API_TOKEN": "t"}
+	m := map[string]string{"ELIZA_ENCAMINHAMENTO_SECRET": strings.Repeat("s", MinSegredo), "ELIZA_BASE_URL": "http://eliza:3000", "ELIZA_AUTOATENDIMENTO_API_TOKEN": "t"}
 	ags, err := Carregar("../../agentes", func(k string) (string, bool) { v, ok := m[k]; return v, ok })
 	if err != nil || len(ags) != 1 || ags[0].ID != "eliza" {
 		t.Fatalf("err=%v ags=%v", err, ags)
+	}
+}
+
+// Segredo HMAC curto é recusado no carregamento.
+func TestSegredoCurto(t *testing.T) {
+	dir := t.TempDir()
+	gravar(t, dir, "a.yaml", yamlOK)
+	m := map[string]string{"SEG": strings.Repeat("x", MinSegredo-1), "URL": "http://eliza:3000", "TOK": "token-y"}
+	_, err := Carregar(dir, func(k string) (string, bool) { v, ok := m[k]; return v, ok })
+	if err == nil || !strings.Contains(err.Error(), "curta demais") {
+		t.Fatalf("err = %v, quer segredo curto recusado", err)
+	}
+	if strings.Contains(err.Error(), m["SEG"]) {
+		t.Fatal("o erro não pode conter o segredo")
 	}
 }
