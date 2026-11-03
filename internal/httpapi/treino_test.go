@@ -27,10 +27,12 @@ import (
 const (
 	segredoTreino = "segredo-de-treino-com-mais-de-32-bytes"
 	corpoOwner    = `{"operador":{"tenant":"org-1","id":"u1","papel":"owner","nome":"Ana"}}`
-	// Calculado fora do Go (hmac do Python) com segredoTreino, 1800000000 e
-	// corpoOwner. O contrato 10 do Eliza §7 usa o mesmo vetor nos testes de lá.
-	assinaturaVetor = "6a46221bb94fe0973d7120c3708511d6928a1ae03ab8f3276c595f2a0a81159c"
-	rotaSessoes     = "/a/eliza/v1/treino/sessoes"
+	// Calculados fora do Go (hmac do Python) com segredoTreino e 1800000000. O
+	// contrato 10 do Eliza §7 usa os mesmos vetores nos testes de lá.
+	vetorPost   = "4a1b3a0095223988b879a08c0150ed2a69e31e900b18192cd3d6098a5719713c" // POST /sessoes, corpoOwner
+	vetorGet    = "c974379c14cc79d83c920aadda3951d7c72635053b25f0abd37636700d099902" // GET /perfil
+	vetorDelete = "41706b734ba1250b05e4d82e8027b92f5716ee6d929179fb4fa12fba69203470" // DELETE /perfil
+	rotaSessoes = "/a/eliza/v1/treino/sessoes"
 )
 
 const yamlTreino = yamlTeste + `treino:
@@ -62,8 +64,14 @@ func montarTreino(t *testing.T, yaml string, respostas ...llm.GenerateResponse) 
 	return s
 }
 
-func assinarTreino(corpo string) string {
-	return assinarCom(segredoTreino, corpo, agora.Unix())
+// mensagemTreino é o que a assinatura cobre: método, caminho depois de
+// /v1/treino e corpo (specs/06 §4).
+func mensagemTreino(metodo, rota, corpo string) string {
+	return metodo + "." + strings.TrimPrefix(rota, "/a/eliza/v1/treino") + "." + corpo
+}
+
+func assinarTreino(rota, corpo string) string {
+	return assinarCom(segredoTreino, mensagemTreino("POST", rota, corpo), agora.Unix())
 }
 
 func pedir(s *Server, rota, corpo, sig string) *httptest.ResponseRecorder {
@@ -76,7 +84,7 @@ func pedir(s *Server, rota, corpo, sig string) *httptest.ResponseRecorder {
 }
 
 func pedirAssinado(s *Server, rota, corpo string) *httptest.ResponseRecorder {
-	return pedir(s, rota, corpo, assinarTreino(corpo))
+	return pedir(s, rota, corpo, assinarTreino(rota, corpo))
 }
 
 func codigoErro(t *testing.T, rec *httptest.ResponseRecorder) string {
@@ -105,13 +113,19 @@ func abrirSessao(t *testing.T, s *Server) string {
 
 func TestVetorDeAssinaturaDoTreino(t *testing.T) {
 	err := entrada.VerificarAssinatura([]byte(segredoTreino), strconv.FormatInt(agora.Unix(), 10),
-		[]byte(corpoOwner), assinaturaVetor, agora)
+		[]byte(mensagemTreino("POST", rotaSessoes, corpoOwner)), vetorPost, agora)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := montarTreino(t, yamlTreino, llm.TextoResp("Oi!"))
-	if rec := pedir(s, rotaSessoes, corpoOwner, assinaturaVetor); rec.Code != 200 {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	if rec := pedir(s, rotaSessoes, corpoOwner, vetorPost); rec.Code != 200 {
+		t.Fatalf("POST: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := semCorpo(s, "GET", "/a/eliza/v1/treino/perfil", "owner", vetorGet); rec.Code != 200 {
+		t.Fatalf("GET: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := semCorpo(s, "DELETE", "/a/eliza/v1/treino/perfil", "owner", vetorDelete); rec.Code != 200 {
+		t.Fatalf("DELETE: %d %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -135,13 +149,13 @@ func TestTreinoDesligado(t *testing.T) {
 func TestAssinaturaDoTreino(t *testing.T) {
 	s := montarTreino(t, yamlTreino)
 	// S9: o segredo do encaminhamento não abre o treino.
-	if rec := pedir(s, rotaSessoes, corpoOwner, assinarCom(segredo, corpoOwner, agora.Unix())); rec.Code != 401 {
+	if rec := pedir(s, rotaSessoes, corpoOwner, assinarCom(segredo, mensagemTreino("POST", rotaSessoes, corpoOwner), agora.Unix())); rec.Code != 401 {
 		t.Errorf("segredo do encaminhamento: %d", rec.Code)
 	}
 	if rec := pedir(s, rotaSessoes, corpoOwner, "00"); rec.Code != 401 || codigoErro(t, rec) != "NAO_AUTORIZADO" {
 		t.Errorf("assinatura errada: %d %s", rec.Code, rec.Body.String())
 	}
-	vencida := assinarCom(segredoTreino, corpoOwner, agora.Unix()-301)
+	vencida := assinarCom(segredoTreino, mensagemTreino("POST", rotaSessoes, corpoOwner), agora.Unix()-301)
 	r := httptest.NewRequest("POST", rotaSessoes, strings.NewReader(corpoOwner))
 	r.Header.Set("X-Treino-Ts", strconv.FormatInt(agora.Unix()-301, 10))
 	r.Header.Set("X-Treino-Sig", vencida)
@@ -260,7 +274,7 @@ func TestTurnoLentoPassaDoWriteTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Set("X-Treino-Ts", strconv.FormatInt(agora.Unix(), 10))
-	req.Header.Set("X-Treino-Sig", assinarTreino(corpoOwner))
+	req.Header.Set("X-Treino-Sig", assinarTreino(rotaSessoes, corpoOwner))
 	resp, err := srv.Client().Do(req)
 	if err != nil {
 		t.Fatalf("conexão caiu antes da resposta: %v", err)

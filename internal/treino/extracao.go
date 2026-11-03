@@ -304,9 +304,13 @@ func (s *Servico) extrair(ctx context.Context, ag agentes.Agente, sess store.Ses
 		if err != nil {
 			return out, err
 		}
-		pendentes, err := s.Store.NotasPendentes(ctx, sess.Agente, sess.Tenant)
+		notasAbertas, err := s.Store.Notas(ctx, sess.Agente, sess.Tenant, store.NotaPendente)
 		if err != nil {
 			return out, err
+		}
+		pendentes := make([]string, len(notasAbertas))
+		for i, n := range notasAbertas {
+			pendentes[i] = n.Texto
 		}
 		var tin, tout int
 		saida, tin, tout, err = s.chamarExtracao(ctx, modelo, pares, rot.Preferencias, ativo, candidatasDe(existentes), pendentes)
@@ -345,24 +349,9 @@ func (s *Servico) extrair(ctx context.Context, ag agentes.Agente, sess store.Ses
 		Agente: sess.Agente, Tenant: sess.Tenant, SessaoID: sess.ID, OperadorID: sess.OperadorID,
 		Observacoes: obs, Notas: notas,
 		Derivar: func(todas []store.Observacao, atualJSON []byte) (store.Derivacao, error) {
-			atual, err := lerPerfil(atualJSON)
-			if err != nil {
-				return store.Derivacao{}, err
-			}
-			novo := derivar(todas)
-			mudancas = diferencas(atual, novo)
-			if len(mudancas) == 0 {
-				return store.Derivacao{}, nil
-			}
-			perfilJSON, err := json.Marshal(novo)
-			if err != nil {
-				return store.Derivacao{}, err
-			}
-			diffJSON, err := json.Marshal(mudancas)
-			if err != nil {
-				return store.Derivacao{}, err
-			}
-			return store.Derivacao{PerfilJSON: perfilJSON, DiffJSON: diffJSON, Mudou: true}, nil
+			d, m, err := derivarVersao(todas, atualJSON)
+			mudancas = m
+			return d, err
 		},
 	})
 	if errors.Is(err, store.ErrJaExtraida) {

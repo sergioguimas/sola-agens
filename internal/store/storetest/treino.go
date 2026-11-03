@@ -333,15 +333,127 @@ func RodarTreino(t *testing.T, nova func(t *testing.T) StoreTreinoFechavel) {
 		if err != nil || len(obs) != 1 || obs[0].Valor != "oi" {
 			t.Fatalf("observações: %+v err=%v", obs, err)
 		}
-		notas, err := s.NotasPendentes(ctx, "eliza", "org-1")
-		if err != nil || len(notas) != 1 || notas[0] != "abre domingo" {
+		notas, err := s.Notas(ctx, "eliza", "org-1", store.NotaPendente)
+		if err != nil || len(notas) != 1 || notas[0].Texto != "abre domingo" {
 			t.Fatalf("notas: %+v err=%v", notas, err)
 		}
 		if o, _ := s.Observacoes(ctx, "eliza", "org-2"); len(o) != 0 {
 			t.Errorf("observações de outro tenant: %+v", o)
 		}
-		if n, _ := s.NotasPendentes(ctx, "eliza", "org-2"); len(n) != 0 {
+		if n, _ := s.Notas(ctx, "eliza", "org-2", ""); len(n) != 0 {
 			t.Errorf("notas de outro tenant: %+v", n)
+		}
+	})
+
+	t.Run("edição muda estado, grava versão e desfaz tudo se falhar", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		res, err := s.AplicarExtracao(ctx, extracao(encerrada(t, s, "org-1", "u1"), saudacao))
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := res.Observacoes[0].ID
+		falha := errors.New("falhou")
+		_, err = s.EditarPerfil(ctx, store.Edicao{Agente: "eliza", Tenant: "org-1", OperadorID: "u1", Origem: "edicao", Rejeitar: []string{id},
+			Derivar: func([]store.Observacao, []byte) (store.Derivacao, error) { return store.Derivacao{}, falha }})
+		if !errors.Is(err, falha) {
+			t.Fatalf("erro: %v", err)
+		}
+		if o, _ := s.Observacoes(ctx, "eliza", "org-1"); o[0].Estado != store.ObservacaoCandidata {
+			t.Fatalf("rejeição ficou depois da falha: %+v", o[0])
+		}
+		r, err := s.EditarPerfil(ctx, store.Edicao{Agente: "eliza", Tenant: "org-1", OperadorID: "u1", Origem: "edicao", Rejeitar: []string{id},
+			Derivar: func(obs []store.Observacao, _ []byte) (store.Derivacao, error) {
+				if obs[0].Estado != store.ObservacaoRejeitada {
+					t.Errorf("derivação viu o estado antigo: %+v", obs[0])
+				}
+				return store.Derivacao{PerfilJSON: []byte(`{}`), DiffJSON: []byte(`[]`), Mudou: true}, nil
+			}})
+		if err != nil || r.Versao == nil || *r.Versao != 1 {
+			t.Fatalf("edição: %+v err=%v", r.Versao, err)
+		}
+		vs, err := s.Versoes(ctx, "eliza", "org-1")
+		if err != nil || len(vs) != 1 || vs[0].Origem != "edicao" || !vs[0].Ativa {
+			t.Fatalf("versões: %+v err=%v", vs, err)
+		}
+		if raw, err := s.Versao(ctx, "eliza", "org-1", 1); err != nil || string(raw) != `{}` {
+			t.Fatalf("versão 1: %s err=%v", raw, err)
+		}
+		if _, err := s.Versao(ctx, "eliza", "org-1", 9); !errors.Is(err, store.ErrNaoEncontrado) {
+			t.Errorf("versão inexistente: %v", err)
+		}
+		if _, err := s.Versao(ctx, "eliza", "org-2", 1); !errors.Is(err, store.ErrNaoEncontrado) {
+			t.Errorf("versão de outro tenant: %v", err)
+		}
+	})
+
+	t.Run("edição não alcança observação de outro tenant", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		res, err := s.AplicarExtracao(ctx, extracao(encerrada(t, s, "org-1", "u1"), saudacao))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = s.EditarPerfil(ctx, store.Edicao{Agente: "eliza", Tenant: "org-2", OperadorID: "u9", Origem: "edicao",
+			Rejeitar: []string{res.Observacoes[0].ID}, Derivar: semMudanca})
+		if !errors.Is(err, store.ErrNaoEncontrado) {
+			t.Fatalf("outro tenant: %v", err)
+		}
+		if o, _ := s.Observacoes(ctx, "eliza", "org-1"); o[0].Estado != store.ObservacaoCandidata {
+			t.Fatalf("outro tenant rejeitou: %+v", o[0])
+		}
+	})
+
+	t.Run("zerar rejeita tudo e descarta as pendentes do tenant", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		for _, tenant := range []string{"org-1", "org-2"} {
+			e := extracao(encerrada(t, s, tenant, "u1"), saudacao)
+			e.Notas = []store.NotaNova{{ID: "n-" + tenant, Texto: "fato"}}
+			if _, err := s.AplicarExtracao(ctx, e); err != nil {
+				t.Fatal(err)
+			}
+		}
+		_, err := s.EditarPerfil(ctx, store.Edicao{Agente: "eliza", Tenant: "org-1", OperadorID: "u1", Origem: "zerado",
+			RejeitarTodas: true, DescartarNotas: true, Em: base, Derivar: semMudanca})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if o, _ := s.Observacoes(ctx, "eliza", "org-1"); o[0].Estado != store.ObservacaoRejeitada {
+			t.Errorf("observação: %+v", o[0])
+		}
+		if n, _ := s.Notas(ctx, "eliza", "org-1", ""); n[0].Estado != store.NotaDescartada {
+			t.Errorf("nota: %+v", n[0])
+		}
+		if o, _ := s.Observacoes(ctx, "eliza", "org-2"); o[0].Estado != store.ObservacaoCandidata {
+			t.Errorf("outro tenant foi zerado: %+v", o[0])
+		}
+		if n, _ := s.Notas(ctx, "eliza", "org-2", store.NotaPendente); len(n) != 1 {
+			t.Errorf("nota de outro tenant: %+v", n)
+		}
+	})
+
+	t.Run("marcar nota é repetível e não troca a decisão", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		e := extracao(encerrada(t, s, "org-1", "u1"))
+		e.Notas = []store.NotaNova{{ID: "n1", Texto: "fato"}}
+		if _, err := s.AplicarExtracao(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.MarcarNota(ctx, "eliza", "org-2", "n1", store.NotaAplicada, base); !errors.Is(err, store.ErrNaoEncontrado) {
+			t.Fatalf("outro tenant: %v", err)
+		}
+		for i := 0; i < 2; i++ {
+			if v, err := s.MarcarNota(ctx, "eliza", "org-1", "n1", store.NotaAplicada, base); err != nil || v != store.NotaAplicada {
+				t.Fatalf("marcar %d: %s err=%v", i, v, err)
+			}
+		}
+		if v, err := s.MarcarNota(ctx, "eliza", "org-1", "n1", store.NotaDescartada, base); err != nil || v != store.NotaAplicada {
+			t.Fatalf("decisão trocada: %s err=%v", v, err)
+		}
+		if n, _ := s.Notas(ctx, "eliza", "org-1", store.NotaPendente); len(n) != 0 {
+			t.Errorf("ainda pendente: %+v", n)
 		}
 	})
 

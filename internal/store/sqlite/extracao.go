@@ -126,7 +126,7 @@ func (s *Store) AplicarExtracao(ctx context.Context, e store.Extracao) (store.Re
 			return err
 		}
 		if d.Mudou {
-			v, err := gravarVersao(ctx, tx, e, d, agora)
+			v, err := gravarVersao(ctx, tx, e.Agente, e.Tenant, e.OperadorID, "sessao:"+e.SessaoID, d, agora)
 			if err != nil {
 				return err
 			}
@@ -189,26 +189,6 @@ func (s *Store) Observacoes(ctx context.Context, agente, tenant string) ([]store
 	return observacoes(ctx, s.db, agente, tenant)
 }
 
-// NotasPendentes implementa store.StoreTreino.
-func (s *Store) NotasPendentes(ctx context.Context, agente, tenant string) ([]string, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT texto FROM notas WHERE agente = ? AND tenant = ? AND estado = ? ORDER BY criada_em, id`,
-		agente, tenant, store.NotaPendente)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
-}
-
 func observacoes(ctx context.Context, q querier, agente, tenant string) ([]store.Observacao, error) {
 	rows, err := q.QueryContext(ctx,
 		`SELECT id, campo, valor, valor_exibicao, cenario, origem, estado, ocorrencias, sessoes, ultima_sessao, citacao
@@ -233,20 +213,20 @@ func observacoes(ctx context.Context, q querier, agente, tenant string) ([]store
 
 // gravarVersao cria a versão nova já ativa. "Uma ativa por tenant" vale pela
 // transação, não por índice parcial (specs/06 §10).
-func gravarVersao(ctx context.Context, tx *sql.Tx, e store.Extracao, d store.Derivacao, agora int64) (int, error) {
+func gravarVersao(ctx context.Context, tx *sql.Tx, agente, tenant, operador, origem string, d store.Derivacao, agora int64) (int, error) {
 	var ultima int
 	if err := tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(versao), 0) FROM perfis WHERE agente = ? AND tenant = ?`, e.Agente, e.Tenant).Scan(&ultima); err != nil {
+		`SELECT COALESCE(MAX(versao), 0) FROM perfis WHERE agente = ? AND tenant = ?`, agente, tenant).Scan(&ultima); err != nil {
 		return 0, err
 	}
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE perfis SET ativa = 0 WHERE agente = ? AND tenant = ? AND ativa = 1`, e.Agente, e.Tenant); err != nil {
+		`UPDATE perfis SET ativa = 0 WHERE agente = ? AND tenant = ? AND ativa = 1`, agente, tenant); err != nil {
 		return 0, err
 	}
 	v := ultima + 1
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO perfis (agente, tenant, versao, ativa, perfil, diff, origem, criada_por, criada_em)
 		 VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)`,
-		e.Agente, e.Tenant, v, string(d.PerfilJSON), string(d.DiffJSON), "sessao:"+e.SessaoID, e.OperadorID, agora)
+		agente, tenant, v, string(d.PerfilJSON), string(d.DiffJSON), origem, operador, agora)
 	return v, err
 }

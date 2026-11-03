@@ -1,7 +1,7 @@
 # 06 — Modo de treinamento (perfil de estilo por tenant)
 
-> **TO-BE, em construção.** Alvo da fase **F2c**. As **fases 1 (chat) e 2 (aprendizado) existem no código**
-> desde 03/11/2026; o resto segue TO-BE (PLANO-DE-BUILD §7). A ordem da T12 foi invertida a pedido do Sérgio: a
+> **TO-BE, em construção.** Alvo da fase **F2c**. As **fases 1 (chat), 2 (aprendizado) e 3 (painel) existem
+> no código** desde 03/11/2026; prévia e efeito no atendimento seguem TO-BE (PLANO-DE-BUILD §7). A ordem da T12 foi invertida a pedido do Sérgio: a
 > F2c começou **antes da F2a** (S18).
 > Decisões de origem: [docs/RODADA-5-TREINAMENTO.md](../docs/RODADA-5-TREINAMENTO.md) (T1–T12) e
 > CONTRATO §10 (rodada 5). Decisões tomadas ao escrever esta spec: §13 (S9–S17), para revisão.
@@ -65,19 +65,24 @@ bytes; `papeis` não vazio; limites positivos. Falha derruba o boot.
 Toda chamada da §5 vem **assinada pelo sistema**, no mesmo esquema da entrada encaminhada (04 §1), com
 o segredo de `treino.segredo_env`:
 
-- `X-Eliza-Assinatura = hex(HMAC-SHA256(segredo, X-Eliza-Timestamp + "." + corpo bruto))`;
-  `X-Eliza-Timestamp` em epoch segundos, tolerância 300 s. Nos `GET` o corpo bruto é a string vazia.
-- O corpo (ou, nos `GET`, os headers `X-Agens-Tenant`, `X-Agens-Operador-Id`, `X-Agens-Operador-Papel`,
-  incluídos na assinatura como `timestamp + "." + tenant + "." + operadorId + "." + papel`) traz:
+- `X-Eliza-Assinatura = hex(HMAC-SHA256(segredo, timestamp + "." + MÉTODO + "." + caminho + "." + conteúdo))`;
+  `X-Eliza-Timestamp` em epoch segundos, tolerância 300 s. **Método e caminho entram na assinatura (S32).**
+- `caminho` é o que vem depois de `/a/{agente}/v1/treino`, com a query como foi enviada:
+  `/sessoes/abc/mensagens`, `/notas?estado=pendente`.
+- `conteúdo` é o corpo bruto. Sem corpo (`GET`, `DELETE /perfil`), é `tenant + "." + operadorId + "." + papel`,
+  e a identidade vai nos headers `X-Agens-Tenant`, `X-Agens-Operador-Id` e `X-Agens-Operador-Papel`.
+- O corpo traz:
 
 ```json
 { "operador": { "tenant": "<org id>", "id": "<user id>", "papel": "owner", "nome": "Ana" } }
 ```
 
-- **Vetor fixo** (contrato 10 §7, o Eliza usa o mesmo nos testes): segredo
-  `segredo-de-treino-com-mais-de-32-bytes`, timestamp `1800000000`, corpo
-  `{"operador":{"tenant":"org-1","id":"u1","papel":"owner","nome":"Ana"}}` →
-  `6a46221bb94fe0973d7120c3708511d6928a1ae03ab8f3276c595f2a0a81159c`.
+- **Vetores fixos** (contrato 10 §7, o Eliza usa os mesmos nos testes): segredo
+  `segredo-de-treino-com-mais-de-32-bytes`, timestamp `1800000000`, operador `org-1`, `u1`, `owner`:
+  - `POST /sessoes` com corpo `{"operador":{"tenant":"org-1","id":"u1","papel":"owner","nome":"Ana"}}` →
+    `4a1b3a0095223988b879a08c0150ed2a69e31e900b18192cd3d6098a5719713c`
+  - `GET /perfil` → `c974379c14cc79d83c920aadda3951d7c72635053b25f0abd37636700d099902`
+  - `DELETE /perfil` → `41706b734ba1250b05e4d82e8027b92f5716ee6d929179fb4fa12fba69203470`
 - `papel` fora de `treino.papeis` → `403 PAPEL_NAO_PERMITIDO`. O agens confia no `tenant` e no `id`
   assinados: **quem garante que o usuário é daquela org é o sistema**.
 - `nome` passa por `nomeSeguro` (02 §7) e só serve para o agens chamar o operador pelo nome.
@@ -95,7 +100,7 @@ Prefixo `/a/{agente}/v1/treino`. Tudo síncrono, JSON, assinado (§4). Erros no 
 | `POST /sessoes` | abre sessão (ou devolve a aberta do mesmo operador) e a primeira fala do agens | T-F1 |
 | `POST /sessoes/{id}/mensagens` | uma mensagem do operador → resposta do agens | T-F2 |
 | `POST /sessoes/{id}/encerrar` | encerra, extrai e devolve o que mudou | T-F3 |
-| `GET /sessoes?limite=20` | sessões do tenant, mais recentes primeiro (sem texto) | — |
+| `GET /sessoes?limite=20` | sessões do tenant, mais recentes primeiro (sem texto). **Não construída:** o contrato 10 não a usa | — |
 | `GET /perfil` | versão ativa (perfil + texto renderizado da seção do prompt) | — |
 | `GET /perfil/versoes` | versões (número, origem, data, resumo do diff) | — |
 | `POST /perfil/versoes/{n}/ativar` | volta para a versão `n` | T-F6 |
@@ -145,6 +150,12 @@ Prefixo `/a/{agente}/v1/treino`. Tudo síncrono, JSON, assinado (§4). Erros no 
 { "notas": [ { "id": "…", "texto": "…", "citacao": "…", "estado": "pendente", "criadaEm": "…" } ] }
 // POST /perfil/versoes/{n}/ativar
 { "versao": 8, "rejeitadas": [ { "id": "…", "campo": "emojis.preferidos", "valor": "💅" } ] }
+// POST /observacoes/{id}/rejeitar · /restaurar
+{ "versaoNova": 9, "mudancas": [ … ] }          // versaoNova null se o perfil não mudou
+// POST /notas/{id}/marcar — { "operador": {…}, "estado": "aplicada" | "descartada" }
+{ "id": "…", "estado": "aplicada" }             // nota já resolvida devolve a decisão que vale
+// DELETE /perfil
+{ "versao": 10 }
 ```
 
 Instantes em ISO 8601 UTC. Os nomes de campo são os do Zod do Eliza (`contracts/autoatendimento/treino.ts`,
@@ -548,8 +559,10 @@ memória sem pausar.
 | S27 | Valor de campo fechado passa por `canonizar` ("Você" → `voce`); o que não encaixa é descartado. Declaração com vários emojis vira uma observação por emoji | `registrar_preferencia` recebe texto livre, e o perfil só aceita o enum do Zod do Eliza. Visto nas sessões reais |
 | S28 | **Item de estilo com número, `%` ou `R$` vira nota**, mesmo que o modelo o classifique como estilo. Exemplos ficam de fora: a resposta real tem horário e preço, e o prompt já manda não copiar | T5: fato nunca entra sozinho. Isso não depende de o modelo acertar o `tipo` |
 | S29 | `tentativas_extracao` entra na 0003, que ainda não foi aplicada em nenhuma base. O job T-F4 roda pelo gancho `AoTick` da manutenção, a cada minuto, fora do controle diário | A §11 pede uma tentativa a mais e parar; sem contador o job tentaria para sempre. O runner só tinha job diário |
-| S31 | **A extração recebe as candidatas e as notas pendentes** (a §7.2 só previa o perfil ativo), com a ordem de repetir a redação das candidatas e de não anotar de novo o mesmo fato. **Limite conhecido:** continua dependendo do modelo. Em 4 baterias reais, 3 somaram evidência de texto livre; quando não soma, o padrão só demora mais a entrar, nunca entra errado | A fusão compara texto. Na 1ª bateria real, `saudacoes` e `tom` ficaram vazios depois de duas sessões iguais, porque o modelo redigia diferente a cada uma, e o mesmo preço virou duas notas. Comparar por significado exigiria embeddings ou outra chamada ao LLM |
 | S30 | Sessão sem resposta nem preferência não chama o LLM. Encerrar de novo devolve só `versaoNova`, sem o detalhe. `instrucoesIgnoradas` vai ao log só como contagem (a §14 falava em "no log") | O log do motor nunca leva texto de conversa, e essa lista descreve o que a pessoa escreveu |
+| S31 | **A extração recebe as candidatas e as notas pendentes** (a §7.2 só previa o perfil ativo), com a ordem de repetir a redação das candidatas e de não anotar de novo o mesmo fato. **Limite conhecido:** continua dependendo do modelo. Em 4 baterias reais, 3 somaram evidência de texto livre; quando não soma, o padrão só demora mais a entrar, nunca entra errado | A fusão compara texto. Na 1ª bateria real, `saudacoes` e `tom` ficaram vazios depois de duas sessões iguais, porque o modelo redigia diferente a cada uma, e o mesmo preço virou duas notas. Comparar por significado exigiria embeddings ou outra chamada ao LLM |
+| S32 | **Fase 3: a assinatura cobre método e caminho, com a query.** Vale em todas as rotas do treino, e os vetores da §4 mudaram | Sem isso, a assinatura de um `GET /perfil` servia por 5 minutos para `DELETE /perfil`, porque as duas assinavam o mesmo `tenant.operador.papel`. O agens fica na `proxy_net`, compartilhada. Replay na mesma rota, dentro dos 300 s, continua possível |
+| S33 | **Fase 3: `EditarPerfil` numa transação** para rejeitar, restaurar, voltar versão e zerar. Voltar para a versão em vigor não cria versão. Nota já resolvida não muda de decisão, e marcar de novo é seguro (C34). `SecaoPrompt` já renderiza a seção da §9.1, mas nada a usa no atendimento (S19) | O painel precisa mostrar como o perfil entra no prompt. Na fase 4 falta só ligar |
 
 ## 14. Testes (o que o build precisa provar)
 

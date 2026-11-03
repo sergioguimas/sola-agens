@@ -44,7 +44,9 @@ const (
 	ObservacaoCandidata = "candidata"
 	ObservacaoRejeitada = "rejeitada"
 
-	NotaPendente = "pendente"
+	NotaPendente   = "pendente"
+	NotaAplicada   = "aplicada"
+	NotaDescartada = "descartada"
 )
 
 // SessaoTreino é uma conversa de treino de um operador.
@@ -117,11 +119,48 @@ type NotaNova struct {
 	Citacao string
 }
 
+// Nota é uma afirmação de fato, com o estado da decisão do operador.
+type Nota struct {
+	ID       string
+	Texto    string
+	Citacao  string
+	Estado   string
+	CriadaEm time.Time
+}
+
+// VersaoPerfil é uma linha do histórico do perfil.
+type VersaoPerfil struct {
+	Versao   int
+	Ativa    bool
+	Origem   string
+	DiffJSON []byte
+	CriadaEm time.Time
+}
+
 // Derivacao é o perfil que sai das observações.
 type Derivacao struct {
 	PerfilJSON []byte
 	DiffJSON   []byte
 	Mudou      bool
+	// Rejeitar são observações que saem junto com esta versão (S13). Só vale em
+	// EditarPerfil.
+	Rejeitar []string
+}
+
+// Edicao é uma mudança feita pelo operador no painel. Roda numa transação:
+// muda os estados, deriva e grava a versão, se o perfil mudou (specs/06 S33).
+type Edicao struct {
+	Agente         string
+	Tenant         string
+	OperadorID     string
+	Origem         string // edicao | volta:{n} | zerado
+	Rejeitar       []string
+	Restaurar      []string
+	RejeitarTodas  bool
+	DescartarNotas bool
+	Em             time.Time // instante da resolução das notas
+	// Derivar recebe as observações já com os estados novos e o perfil ativo.
+	Derivar func(obs []Observacao, ativoJSON []byte) (Derivacao, error)
 }
 
 // Extracao é o resultado de uma sessão, aplicado de uma vez (specs/06 S26).
@@ -144,8 +183,7 @@ type ResultadoExtracao struct {
 }
 
 // StoreTreino é a persistência do chat de treino. Fica separada de Store
-// porque só o modo de treino a usa (specs/06 §10.1). Rejeitar observação, voltar
-// versão e marcar nota entram na fase do painel.
+// porque só o modo de treino a usa (specs/06 §10.1).
 type StoreTreino interface {
 	// AbrirSessao devolve a sessão aberta do operador ou cria uma, numa só
 	// transação. ErrLimiteSessoes se precisaria criar e o dia já lotou.
@@ -168,8 +206,18 @@ type StoreTreino interface {
 	PerfilAtivo(ctx context.Context, agente, tenant string) (perfilJSON []byte, versao int, err error)
 	// Observacoes lista os padrões do tenant, com a evidência acumulada.
 	Observacoes(ctx context.Context, agente, tenant string) ([]Observacao, error)
-	// NotasPendentes lista os fatos que ainda esperam decisão do operador.
-	NotasPendentes(ctx context.Context, agente, tenant string) ([]string, error)
+	// Notas lista os fatos do tenant, pendentes primeiro; estado vazio traz todos.
+	Notas(ctx context.Context, agente, tenant, estado string) ([]Nota, error)
+	// MarcarNota resolve uma nota pendente e devolve o estado final; nota já
+	// resolvida não muda. ErrNaoEncontrado se for de outro tenant.
+	MarcarNota(ctx context.Context, agente, tenant, id, estado string, em time.Time) (string, error)
+	// Versoes lista o histórico do perfil, a mais nova primeiro.
+	Versoes(ctx context.Context, agente, tenant string) ([]VersaoPerfil, error)
+	// Versao devolve o JSON de uma versão; ErrNaoEncontrado se não existe.
+	Versao(ctx context.Context, agente, tenant string, n int) ([]byte, error)
+	// EditarPerfil aplica uma mudança do painel. ErrNaoEncontrado se alguma
+	// observação não for do tenant.
+	EditarPerfil(ctx context.Context, e Edicao) (ResultadoExtracao, error)
 	// AplicarExtracao funde observações, cria notas, grava a versão nova se o
 	// perfil mudou e marca a sessão como extraída, tudo numa transação: um retry
 	// depois de queda não conta evidência duas vezes. ErrJaExtraida se já foi.
