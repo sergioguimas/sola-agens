@@ -106,7 +106,7 @@ func LoadConfigFrom(lookup lookupFunc) (*Config, error) {
 		return nil, fmt.Errorf("AGENS_SISTEMA_TIMEOUT inválido (%q): duração positiva, ex. 10s", toRaw)
 	}
 
-	if cfg.PausaHumanaH, err = intEm(lookup, "AGENS_PAUSA_HUMANA_HORAS", "12", 1, 168); err != nil {
+	if cfg.PausaHumanaH, err = intEm(lookup, "AGENS_PAUSA_HUMANA_HORAS", "4", 1, 168); err != nil {
 		return nil, err
 	}
 	if cfg.RetencaoDias, err = intEm(lookup, "AGENS_RETENCAO_DIAS", "90", 1, 3650); err != nil {

@@ -91,7 +91,7 @@ func (m *Motor) padrao() Dicionario {
 	d := Padrao()
 	d.PausaHumanaHoras = m.Config.PausaHumanaH
 	if d.PausaHumanaHoras <= 0 {
-		d.PausaHumanaHoras = 12
+		d.PausaHumanaHoras = 4
 	}
 	return d
 }

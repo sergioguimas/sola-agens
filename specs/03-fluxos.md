@@ -69,7 +69,7 @@ Erro **de regra** (4xx fora da lista) não é F2: volta ao LLM como dado (02 §2
    cria a conversa se não existe, grava o texto com `papel=aviso` (o modelo o vê como
    `[aviso automático enviado pelo estabelecimento] ...`), log `aviso tipo=<tipo>`; **sem pausa e sem
    turno**, fim.
-2. Senão: `pausaHumanaHoras` de `conversas.config_json` ou padrão (12 h) → `Pausar(agora + h)`.
+2. Senão: `pausaHumanaHoras` de `conversas.config_json` ou padrão (4 h) → `Pausar(agora + h)`.
 3. Se o corpo trouxe texto, grava na memória com `papel=humano` (o agens, ao voltar, sabe o que a
    equipe disse).
 4. Log `pausa ate=<instante>`; sem turno (não houve resposta).

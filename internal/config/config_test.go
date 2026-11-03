@@ -29,7 +29,7 @@ func TestDefaults(t *testing.T) {
 		{"Temperature", cfg.Temperature, 0.0},
 		{"ThinkingBudget", cfg.ThinkingBudget, 0},
 		{"SistemaTimeout", cfg.SistemaTimeout, 10 * time.Second},
-		{"PausaHumanaH", cfg.PausaHumanaH, 12},
+		{"PausaHumanaH", cfg.PausaHumanaH, 4},
 		{"RetencaoDias", cfg.RetencaoDias, 90},
 		{"ManutencaoHora", cfg.ManutencaoHora, 4},
 		{"EncerramentoS", cfg.EncerramentoS, 30},

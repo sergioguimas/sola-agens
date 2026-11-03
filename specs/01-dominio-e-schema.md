@@ -60,7 +60,7 @@ Campos (forma do lado do motor; o Eliza segue o Zod que o PR dele definir):
 | `persona` | `null` (o agente não se apresenta por nome) | nome do atendente no prompt |
 | `tom` | "cordial, direto, frases curtas" | seção PERSONA do prompt |
 | `instrucoes` | `null` | Eliza: `politica.instrucoesAtendimento` |
-| `pausaHumanaHoras` | `AGENS_PAUSA_HUMANA_HORAS` (12) | §4 |
+| `pausaHumanaHoras` | `AGENS_PAUSA_HUMANA_HORAS` (4) | §4 |
 | `respostas.*` | dicionário do motor (02 §5) | respostas fixas e do fastpath |
 | `palavras.confirmar`, `palavras.cancelar` | dicionário do motor (02 §5) | fastpath |
 
