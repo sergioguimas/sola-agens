@@ -7,6 +7,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não publicado]
 
+### Adicionado
+
+- Chat de treino do atendente, primeira fase: a dona do estabelecimento conversa com o agens, que faz o papel de cliente em ensaios e guarda como ela responde. Vem desligado (bloco `treino` no registro do agente, com `ELIZA_TREINO_SECRET`) e ainda não muda o atendimento dos clientes. Rotas assinadas em `/a/{agente}/v1/treino/sessoes`.
+- Avaliação do chat de treino com o modelo real: `go run ./avaliacao -treino`.
+
 ## [1.1.0] - 2026-11-02
 
 ### Modificado

@@ -28,6 +28,7 @@ import (
 	"sola-agens/internal/store/sqlite"
 	"sola-agens/internal/transcricao"
 	"sola-agens/internal/trava/memoria"
+	"sola-agens/internal/treino"
 )
 
 func main() {
@@ -114,6 +115,12 @@ func run(log *slog.Logger) error {
 	svc.AoTrocar = api.Trocar
 	api.Eventos = st
 	api.AdminToken, api.Apagador = cfg.AdminToken, st
+	api.Treino = &treino.Servico{
+		Store: st, LLM: provedor, Trava: &memoria.Trava{}, Log: log,
+		Config: treino.Config{
+			ModeloPadrao: cfg.Model, Temperature: cfg.Temperature, ThinkingBudget: cfg.ThinkingBudget, Loc: cfg.Loc,
+		},
+	}
 	srv := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           api.Routes(),

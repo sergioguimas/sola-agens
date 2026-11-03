@@ -190,7 +190,7 @@ Detalhe, alternativas e motivos em [docs/RODADA-5-TREINAMENTO.md](docs/RODADA-5-
 | T9 | Perfil ativo **substitui o `tom`** do sistema; persona, respostas fixas e política seguem do sistema |
 | T10 | **Prévia** com o catálogo real só para leitura antes de valer |
 | T11 | Extração com **saída estruturada**; a fusão é do código |
-| T12 | Fase **F2c, depois da F2a**, reaproveitando o turno síncrono e o chat React |
+| T12 | Fase **F2c, depois da F2a**, reaproveitando o turno síncrono e o chat React. **Revista em 03/11/2026:** F2c começou antes da F2a, a pedido do Sérgio (specs/06 S18, S19) |
 
 ## 11. Módulo de treinamento (rascunho — B4, rediscutir antes de construir)
 

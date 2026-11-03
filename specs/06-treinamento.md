@@ -1,6 +1,8 @@
 # 06 — Modo de treinamento (perfil de estilo por tenant)
 
-> **TO-BE.** Nada disto existe no código; é o alvo da fase **F2c**, que vem **depois da F2a** (T12).
+> **TO-BE, em construção.** Alvo da fase **F2c**. A **fase 1 (chat de treino) existe no código** desde
+> 03/11/2026; o resto segue TO-BE (PLANO-DE-BUILD §7). A ordem da T12 foi invertida a pedido do Sérgio: a
+> F2c começou **antes da F2a** (S18).
 > Decisões de origem: [docs/RODADA-5-TREINAMENTO.md](../docs/RODADA-5-TREINAMENTO.md) (T1–T12) e
 > CONTRATO §10 (rodada 5). Decisões tomadas ao escrever esta spec: §13 (S9–S17), para revisão.
 > O lado do sistema (Eliza) está no contrato `Eliza/docs/contratos/autoatendimento/10-treino-do-atendente.md`
@@ -72,6 +74,10 @@ o segredo de `treino.segredo_env`:
 { "operador": { "tenant": "<org id>", "id": "<user id>", "papel": "owner", "nome": "Ana" } }
 ```
 
+- **Vetor fixo** (contrato 10 §7, o Eliza usa o mesmo nos testes): segredo
+  `segredo-de-treino-com-mais-de-32-bytes`, timestamp `1800000000`, corpo
+  `{"operador":{"tenant":"org-1","id":"u1","papel":"owner","nome":"Ana"}}` →
+  `6a46221bb94fe0973d7120c3708511d6928a1ae03ab8f3276c595f2a0a81159c`.
 - `papel` fora de `treino.papeis` → `403 PAPEL_NAO_PERMITIDO`. O agens confia no `tenant` e no `id`
   assinados: **quem garante que o usuário é daquela org é o sistema**.
 - `nome` passa por `nomeSeguro` (02 §7) e só serve para o agens chamar o operador pelo nome.
@@ -519,6 +525,23 @@ memória sem pausar.
 | S15 | Ensaio e prévia usam o **ticket de visitante** da F2a para ler o catálogo: sem ele o ensaio é genérico e a prévia não roda | §5.1, §11 |
 | S16 | Exemplos entram com 1 sessão (são resposta real, não inferência); os demais itens exigem 2 sessões ou declaração (T5) | §7.3 |
 | S17 | Observação de estilo cuja citação não aparece nas mensagens do operador é descartada | §7.2 |
+
+### 13.1 Decisões da fase 1 (03/11/2026, durante o build)
+
+| # | Decisão | Motivo |
+|---|---|---|
+| S18 | **F2c antes da F2a** (revê T12, pedido do Sérgio). O motor cria sessão, conversa e guarda o material sem ticket de visitante: ensaios genéricos, sem catálogo. **Abrir a sessão é uma transação só** e quem já tem sessão aberta não conta no limite do dia | O texto da T12 já previa a inversão ("só muda quem constrói a base"). Na ordem da §11, a operadora com sessão aberta levaria `429` ao recarregar a página depois do 10º treino do dia |
+| S19 | **O perfil não chega ao atendimento enquanto não houver prévia.** A fase 1 não toca `agent.Prompt` | T10 pede prévia antes de valer e T5 ativa versão sozinha. Sem a F2a não há prévia (S15): ligar os dois agora faria mudança automática chegar a cliente real sem conferência |
+| S20 | **A mensagem do operador é gravada junto com a resposta**, numa transação, depois do LLM (a §11 T-F2 gravava antes) | Gravando antes, uma falha do LLM deixaria a mensagem na sessão, e o reenvio a duplicaria e perderia o vínculo com o ensaio |
+| S21 | Abertura sem fala (LLM falhou) é refeita na próxima chamada. O histórico sempre começa com um turno de usuário fixo, não gravado | Sem isso a sessão ficaria muda para sempre. A §11 T-F1 pedia "histórico vazio", que o Gemini recusa |
+| S22 | **As rotas de treino estendem o prazo de escrita da requisição** (`turno_timeout_s` + 5 s) | O `WriteTimeout` do servidor é 15 s e o turno pode levar 30 s: a conexão cairia antes da resposta. Provado com servidor HTTP real |
+| S23 | A fala do ensaio sempre aparece: se o texto do modelo não tem aspas, o motor a acrescenta. **Repetição não é ensaio novo:** mesmo cenário em seguida, ou a fala vista repetida entre aspas, mantém o vínculo com o cenário e não conta em `ensaiosFeitos` | Sessões reais: quando o operador sai do roteiro, o modelo repete o ensaio, às vezes com outras palavras ou sem a ferramenta. Sem isso a resposta seguinte perdia o par e a contagem inflava |
+| S24 | `registrar_preferencia` recusa citação que não seja trecho literal do operador e o motor ignora repetida (mesmo campo e valor) | Declarada entra no perfil com uma sessão (§7.3): não pode nascer de frase inventada. O histórico só tem texto, então o modelo não lembra do que já registrou |
+
+**Para a fase de aprendizado:** a mensagem seguinte a um ensaio é sempre gravada como `resposta_ensaio`,
+mesmo quando não responde a ele (preferência declarada, tentativa de injeção). A extração não pode
+tratar todo `resposta_ensaio` como exemplo: com S16, "ignore suas regras…" entraria com uma sessão.
+Métricas (§7.1) contam essas mensagens também.
 
 ## 14. Testes (o que o build precisa provar)
 

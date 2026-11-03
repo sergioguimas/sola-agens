@@ -175,6 +175,21 @@ página de preços do Gemini antes de confiar no total. O preço promocional do 
 31/12/2026 (A9) entra por `AGENS_PRECO_GEMINI_3_6_FLASH`; sem a linha, o custo registrado é o cheio (o
 dobro). Com a linha, **apague-a em janeiro de 2027**.
 
+## Chat de treino
+
+Vem desligado: sem o bloco `treino` em `agentes/eliza.yaml`, as rotas respondem `404 TREINO_DESLIGADO`.
+Para ligar, **nesta ordem** (o bloco com a env ausente ou com menos de 32 bytes derruba o boot):
+
+1. Gere o segredo (`openssl rand -hex 32`) e ponha em `ELIZA_TREINO_SECRET` no `.env` do agens e em
+   `ATENDENTE_TREINO_SECRET` no do Eliza.
+2. Descomente o bloco `treino` em `agentes/eliza.yaml`.
+3. Recarregue (SIGHUP) ou reinicie.
+
+A fase atual conduz a conversa e guarda as sessões; **nada muda no atendimento dos clientes**. Encerrar
+devolve `extracaoPendente: true`: as sessões ficam guardadas para a extração da próxima fase. Rode
+`go run ./avaliacao -treino` a cada mudança no prompt do treino. Cada sessão de 8 falas custa cerca de
+US$ 0,02, registrada em `turnos` com `modo='treino'`.
+
 ## Retenção e apagamento
 
 Um job diário (hora em `AGENS_MANUTENCAO_HORA`, fuso `AGENS_TZ`; recupera até 3 dias perdidos) apaga o

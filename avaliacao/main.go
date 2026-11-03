@@ -43,6 +43,7 @@ func executar(ctx context.Context, args []string, out, errw io.Writer) int {
 	spec := fs.String("spec", "", "eliza.openapi.json (padrão: internal/openapi/testdata)")
 	agentes := fs.String("agentes", "", "diretório agentes/ (padrão: ./agentes)")
 	verboso := fs.Bool("v", false, "mostra as respostas enviadas ao cliente (texto de teste)")
+	soTreino := fs.Bool("treino", false, "roda só a sessão roteirizada do chat de treino (specs/06)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -73,6 +74,19 @@ func executar(ctx context.Context, args []string, out, errw io.Writer) int {
 	}
 	if *modelo == "" {
 		*modelo = cfg.Model
+	}
+
+	if *soTreino {
+		log := slog.New(slog.NewTextHandler(errw, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		ok, err := AvaliarTreino(ctx, gemini.NewClient(chave, nil, log), *modelo, cfg.Temperature, cfg.ThinkingBudget, log, out, *verboso)
+		if err != nil {
+			fmt.Fprintln(errw, "treino:", err)
+			return 2
+		}
+		if ok {
+			return 0
+		}
+		return 1
 	}
 
 	cenarios, err := CarregarArquivo(*arquivo)

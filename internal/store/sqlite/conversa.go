@@ -200,12 +200,21 @@ func (s *Store) Janela(ctx context.Context, id store.ConversaID, max int, desde 
 // ExpurgarTexto zera o conteúdo das mensagens anteriores ao instante (a linha e
 // os anexos, que não têm Ref nem texto, ficam). Devolve quantas linhas mudaram.
 func (s *Store) ExpurgarTexto(ctx context.Context, antesDe time.Time) (int64, error) {
-	r, err := s.db.ExecContext(ctx,
-		`UPDATE mensagens SET conteudo = NULL WHERE criada_em < ? AND conteudo IS NOT NULL`, ms(antesDe))
-	if err != nil {
-		return 0, err
+	var total int64
+	// mensagens_treino segue a mesma retenção (specs/06 §10).
+	for _, tabela := range []string{"mensagens", "mensagens_treino"} {
+		r, err := s.db.ExecContext(ctx,
+			`UPDATE `+tabela+` SET conteudo = NULL WHERE criada_em < ? AND conteudo IS NOT NULL`, ms(antesDe))
+		if err != nil {
+			return total, err
+		}
+		n, err := r.RowsAffected()
+		if err != nil {
+			return total, err
+		}
+		total += n
 	}
-	return r.RowsAffected()
+	return total, nil
 }
 
 // ApagarContato apaga mensagens e conversa e troca o contato por sha256 completo
@@ -239,7 +248,8 @@ func (s *Store) RegistrarTurno(ctx context.Context, t store.Turno) error {
 		return err
 	}
 	switch t.Modo {
-	case store.ModoLLM, store.ModoFastpath, store.ModoFixa, store.ModoPausado, store.ModoErro:
+	case store.ModoLLM, store.ModoFastpath, store.ModoFixa, store.ModoPausado, store.ModoErro,
+		store.ModoTreino, store.ModoPrevia:
 	default:
 		return store.ErrModoInvalido
 	}

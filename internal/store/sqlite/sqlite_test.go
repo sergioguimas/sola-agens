@@ -35,7 +35,7 @@ func TestMigrationsEPragmas(t *testing.T) {
 	}
 	ctx := context.Background()
 	var v int
-	if err := s.db.QueryRowContext(ctx, `SELECT MAX(versao) FROM schema_version`).Scan(&v); err != nil || v != 2 {
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(versao) FROM schema_version`).Scan(&v); err != nil || v != 3 {
 		t.Fatalf("versão = %d err=%v", v, err)
 	}
 	var modo string
@@ -59,7 +59,7 @@ func TestMigrationsEPragmas(t *testing.T) {
 	}
 	var n int
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_version`).Scan(&n)
-	if n != 2 {
+	if n != 3 {
 		t.Errorf("schema_version tem %d linhas", n)
 	}
 	_ = s.Close()

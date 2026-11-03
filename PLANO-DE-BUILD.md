@@ -202,3 +202,24 @@ contra o Eliza de dev e imprime o resultado de cada cenário. go test -race ./..
    [Custos](docs/OPERACAO.md#custos)). Anotar em docs/OPERACAO.md.
 4. Só depois: ligar para uma org real, acompanhando o log de turnos na primeira semana.
 5. Backlog (CONTRATO §9) e o módulo de treinamento (§11, rediscutir) vão para `ROADMAP.md`.
+
+## 7. Fases da F2c (chat de treino)
+
+Contrato: [specs/06-treinamento.md](specs/06-treinamento.md). O serviço já está em produção: cada fase
+sai em branch, e nada chega a cliente real antes da fase 4.
+
+| # | Entrega | Estado | Prova |
+|---|---|---|---|
+| 1 | **Chat de treino:** migration 0003 inteira, bloco `treino` no registro, rotas assinadas `POST /sessoes`, `/mensagens`, `/encerrar`, ensaios e preferências | **Feita 03/11** | testes + `go run ./avaliacao -treino` (10 de 10 sessões reais) |
+| 2 | **Aprendizado:** saída estruturada no `llm`, métricas, extração, fusão, versões, `encerrar` de verdade, job de inatividade (T-F3, T-F4). Só grava o perfil; não muda o atendimento | a fazer | §14 da spec (métricas, fusão, versão) |
+| 3 | **Painel:** `GET /perfil`, versões, observações, notas, voltar versão, zerar (T-F6 a T-F9). Antes de construir, decidir se a assinatura passa a cobrir método e caminho (abaixo) | a fazer | §14 da spec (escopo, versão) |
+| 4 | **Efeito no atendimento:** seção `ESTILO DO ESTABELECIMENTO` no prompt, prévia (T-F5). **Depende do ticket de visitante da F2a** (S15, S19) | bloqueada pela F2a | golden do prompt, avaliação com perfil |
+
+**Em paralelo, no repo do Eliza:** contrato 10 (página `/configuracoes/atendente`), que pode ser feito
+contra um agens falso e já tem API real para a aba Treinar.
+
+**Ponto aberto da fase 3:** a assinatura da §4 não cobre método nem caminho. Nos `GET` e no `DELETE
+/perfil` ela é só `timestamp + tenant + operador + papel`, então a assinatura capturada de um `GET`
+serve, por 5 minutos, para zerar o perfil. O agens fica na `proxy_net`, compartilhada com outros
+serviços. Recomendação: assinar `metodo + caminho` também; custa uma linha nos dois lados, e o contrato
+10 ainda não foi construído.

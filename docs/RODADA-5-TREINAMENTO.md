@@ -54,6 +54,11 @@ versionado; dá para mostrar, comparar e desfazer.
 | T11 ✅ | **Extração com saída estruturada** (`responseSchema` do Gemini, JSON validado no motor): o modelo devolve observações por campo; o motor faz a fusão, conta evidência, aplica os limites e decide o que é estilo e o que é fato (T5). Modelo padrão (3.6 Flash, A9) | O modelo reescrever o perfil inteiro a cada sessão | Fusão no código é testável e não "esquece" o que já foi aprendido a cada rodada. Reescrita inteira faz o perfil oscilar |
 | T12 ✅ | **Ordem: depois da F2a** (chat da `/marcar`), reaproveitando o turno síncrono `{ resposta, acoes[] }` da W4 e a UI React da W9. Fase nova **F2c** (treinamento), piloto na Clínica Admin | Treinamento antes da F2a | A F2a já está toda decidida e constrói exatamente o que o treino precisa: rota síncrona no agens e chat React no Eliza. Fazer o treino primeiro obriga a construir essa base agora e adaptar a F2a depois. Se o treino for mais urgente para o negócio que o chat da página pública, inverter custa pouco: só muda quem constrói a base |
 
+> **T12 revista em 03/11/2026:** o Sérgio pediu o chat de treino antes da F2a. Fica de pé o que a T12
+> já antecipava: quem constrói a base (turno síncrono, chat React) passa a ser a F2c. O que a inversão
+> não resolve: a **prévia (T10) depende do ticket de visitante da F2a** e os ensaios ficam genéricos,
+> sem catálogo, até lá. Por isso o perfil só chega ao atendimento depois da prévia (specs/06 S18, S19).
+
 ## Perfil de estilo (esboço do esquema; fecha no contrato)
 
 | Campo | Exemplo | Limite |
