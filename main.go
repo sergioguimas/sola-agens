@@ -25,6 +25,7 @@ import (
 	"sola-agens/internal/llm"
 	"sola-agens/internal/llm/gemini"
 	"sola-agens/internal/manutencao"
+	"sola-agens/internal/saida"
 	"sola-agens/internal/store/sqlite"
 	"sola-agens/internal/transcricao"
 	"sola-agens/internal/trava/memoria"
@@ -68,7 +69,7 @@ func run(log *slog.Logger) error {
 		Lookup: os.LookupEnv,
 		// DECISÃO: timeout de 30 s por tentativa de download (a spec é maior que um
 		// request comum; AGENS_SISTEMA_TIMEOUT vale para as chamadas do turno).
-		Cliente: &http.Client{Timeout: 30 * time.Second},
+		Cliente: saida.Cliente(30 * time.Second),
 		Timeout: cfg.SistemaTimeout,
 		Modelo:  cfg.Model,
 		Log:     log,

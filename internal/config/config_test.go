@@ -79,6 +79,7 @@ func TestInvalidos(t *testing.T) {
 		"AGENS_ENCERRAMENTO_S":     "0",
 		"AGENS_MAX_CONVERSAS":      "-5",
 		"AGENS_TRANSCRICAO":        "whisper",
+		"AGENS_ADMIN_TOKEN":        "curto",
 	}
 	for k, v := range cases {
 		env := baseEnv()
@@ -93,5 +94,13 @@ func TestPrecosBrutos(t *testing.T) {
 	m := PrecosBrutos([]string{"AGENS_PRECO_GEMINI_2_5_FLASH=0.30,2.50", "AGENS_PRECO_=1", "OUTRA=2", "AGENS_PRECO_X="})
 	if len(m) != 1 || m["GEMINI_2_5_FLASH"] != "0.30,2.50" {
 		t.Errorf("precos = %v", m)
+	}
+}
+
+func TestAdminTokenLongo(t *testing.T) {
+	env := baseEnv()
+	env["AGENS_ADMIN_TOKEN"] = "0123456789abcdef0123456789abcdef"
+	if cfg, err := LoadConfigFrom(lookupFrom(env)); err != nil || cfg.AdminToken != env["AGENS_ADMIN_TOKEN"] {
+		t.Fatalf("token de %d caracteres: %v", MinAdminToken, err)
 	}
 }

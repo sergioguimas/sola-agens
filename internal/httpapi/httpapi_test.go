@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	segredo  = "segredo-de-teste"
+	segredo  = "segredo-de-teste-0123456789abcdef0123"
 	telefone = "5511987654321"
 	textoMsg = "quero cortar o cabelo amanha"
 )

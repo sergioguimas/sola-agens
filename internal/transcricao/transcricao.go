@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"sola-agens/internal/llm"
+	"sola-agens/internal/saida"
 )
 
 // Uso são os tokens que a transcrição gastou (só o Gemini informa; o Groq
@@ -70,7 +71,7 @@ func New(cfg Config, provider llm.Provider, httpClient *http.Client) (Transcrito
 			url = groqDefaultURL
 		}
 		if httpClient == nil {
-			httpClient = &http.Client{}
+			httpClient = saida.Cliente(0)
 		}
 		return &groqTranscritor{apiKey: cfg.GroqKey, modelo: modelo, url: url, httpClient: httpClient}, nil
 	default:
