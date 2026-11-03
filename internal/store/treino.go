@@ -30,6 +30,21 @@ var (
 	ErrNaoEncontrado   = errors.New("não encontrado")
 	ErrLimiteSessoes   = errors.New("limite de sessões do dia")
 	ErrSessaoEncerrada = errors.New("sessão encerrada")
+	// ErrJaExtraida: a sessão já passou pela extração; aplicar de novo contaria
+	// a evidência duas vezes.
+	ErrJaExtraida = errors.New("sessão já extraída")
+)
+
+// Origem e estado de uma observação (specs/06 §10).
+const (
+	OrigemExtraida  = "extraida"
+	OrigemDeclarada = "declarada"
+	OrigemMetrica   = "metrica"
+
+	ObservacaoCandidata = "candidata"
+	ObservacaoRejeitada = "rejeitada"
+
+	NotaPendente = "pendente"
 )
 
 // SessaoTreino é uma conversa de treino de um operador.
@@ -43,6 +58,10 @@ type SessaoTreino struct {
 	AbertaEm    time.Time
 	UltimaMsgEm time.Time
 	EncerradaEm *time.Time
+	// VersaoGerada é a versão de perfil que a sessão criou; nil se nenhuma.
+	VersaoGerada *int
+	// Tentativas de extração já feitas (specs/06 §11 T-F4).
+	Tentativas int
 }
 
 // SessaoNova é o pedido de abertura. O limite do dia conta as sessões abertas
@@ -65,9 +84,68 @@ type MensagemTreino struct {
 	CriadaEm time.Time // zero = agora (clock do Store)
 }
 
+// ObservacaoNova é um padrão visto na sessão, antes da fusão.
+type ObservacaoNova struct {
+	Campo         string
+	Valor         string // normalizado: é a chave da fusão
+	ValorExibicao string
+	Cenario       string // só em exemplos
+	Origem        string
+	Citacao       string
+	Ocorrencias   int
+}
+
+// Observacao é um padrão com a evidência acumulada entre sessões.
+type Observacao struct {
+	ID            string
+	Campo         string
+	Valor         string
+	ValorExibicao string
+	Cenario       string
+	Origem        string
+	Estado        string
+	Ocorrencias   int
+	Sessoes       int
+	UltimaSessao  string
+	Citacao       string
+}
+
+// NotaNova é uma afirmação de fato captada no treino (T5, S12).
+type NotaNova struct {
+	ID      string
+	Texto   string
+	Citacao string
+}
+
+// Derivacao é o perfil que sai das observações.
+type Derivacao struct {
+	PerfilJSON []byte
+	DiffJSON   []byte
+	Mudou      bool
+}
+
+// Extracao é o resultado de uma sessão, aplicado de uma vez (specs/06 S26).
+type Extracao struct {
+	Agente      string
+	Tenant      string
+	SessaoID    string
+	OperadorID  string
+	Observacoes []ObservacaoNova
+	Notas       []NotaNova
+	// Derivar roda dentro da transação, com as observações já fundidas e o JSON
+	// do perfil ativo (nil se não há). Não pode tocar a base.
+	Derivar func(obs []Observacao, ativoJSON []byte) (Derivacao, error)
+}
+
+// ResultadoExtracao diz o que a aplicação produziu.
+type ResultadoExtracao struct {
+	Versao      *int
+	Observacoes []Observacao // do tenant, depois da fusão
+}
+
 // StoreTreino é a persistência do chat de treino. Fica separada de Store
-// porque só o modo de treino a usa. A fase de aprendizado acrescenta
-// observações, perfis e notas (specs/06 §10.1).
+// porque só o modo de treino a usa (specs/06 §10.1). Rejeitar observação, voltar
+// versão e marcar nota entram na fase do painel.
 type StoreTreino interface {
 	// AbrirSessao devolve a sessão aberta do operador ou cria uma, numa só
 	// transação. ErrLimiteSessoes se precisaria criar e o dia já lotou.
@@ -81,4 +159,21 @@ type StoreTreino interface {
 	GravarTurnoTreino(ctx context.Context, sessaoID string, msgs []MensagemTreino, roteiroJSON []byte) error
 	// EncerrarSessao passa de aberta para encerrada; em outro estado não faz nada.
 	EncerrarSessao(ctx context.Context, id string, em time.Time) error
+
+	// SessoesInativas lista as abertas sem mensagem desde antesDe.
+	SessoesInativas(ctx context.Context, agente string, antesDe time.Time) ([]SessaoTreino, error)
+	// SessoesPendentes lista as que faltam extrair, com menos de maxTentativas.
+	SessoesPendentes(ctx context.Context, agente string, maxTentativas int) ([]SessaoTreino, error)
+	// PerfilAtivo devolve o JSON da versão ativa; nil e 0 se não há nenhuma.
+	PerfilAtivo(ctx context.Context, agente, tenant string) (perfilJSON []byte, versao int, err error)
+	// Observacoes lista os padrões do tenant, com a evidência acumulada.
+	Observacoes(ctx context.Context, agente, tenant string) ([]Observacao, error)
+	// NotasPendentes lista os fatos que ainda esperam decisão do operador.
+	NotasPendentes(ctx context.Context, agente, tenant string) ([]string, error)
+	// AplicarExtracao funde observações, cria notas, grava a versão nova se o
+	// perfil mudou e marca a sessão como extraída, tudo numa transação: um retry
+	// depois de queda não conta evidência duas vezes. ErrJaExtraida se já foi.
+	AplicarExtracao(ctx context.Context, e Extracao) (ResultadoExtracao, error)
+	// MarcarErroExtracao registra a tentativa que falhou.
+	MarcarErroExtracao(ctx context.Context, id string) error
 }

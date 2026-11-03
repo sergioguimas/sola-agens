@@ -211,7 +211,7 @@ sai em branch, e nada chega a cliente real antes da fase 4.
 | # | Entrega | Estado | Prova |
 |---|---|---|---|
 | 1 | **Chat de treino:** migration 0003 inteira, bloco `treino` no registro, rotas assinadas `POST /sessoes`, `/mensagens`, `/encerrar`, ensaios e preferências | **Feita 03/11** | testes + `go run ./avaliacao -treino` (10 de 10 sessões reais) |
-| 2 | **Aprendizado:** saída estruturada no `llm`, métricas, extração, fusão, versões, `encerrar` de verdade, job de inatividade (T-F3, T-F4). Só grava o perfil; não muda o atendimento | a fazer | §14 da spec (métricas, fusão, versão) |
+| 2 | **Aprendizado:** saída estruturada no `llm`, métricas, extração, fusão, versões, `encerrar` de verdade, job de inatividade (T-F3, T-F4). Só grava o perfil; não muda o atendimento | **Feita 03/11** | testes, mutação das guardas e `go run ./avaliacao -treino`: 3 de 4 baterias reais passaram 25/25; a outra reprovou só em evidência de texto livre (S31) |
 | 3 | **Painel:** `GET /perfil`, versões, observações, notas, voltar versão, zerar (T-F6 a T-F9). Antes de construir, decidir se a assinatura passa a cobrir método e caminho (abaixo) | a fazer | §14 da spec (escopo, versão) |
 | 4 | **Efeito no atendimento:** seção `ESTILO DO ESTABELECIMENTO` no prompt, prévia (T-F5). **Depende do ticket de visitante da F2a** (S15, S19) | bloqueada pela F2a | golden do prompt, avaliação com perfil |
 

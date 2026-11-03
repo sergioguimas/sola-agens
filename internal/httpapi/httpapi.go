@@ -82,6 +82,16 @@ func (s *Server) Trocar(ags []agentes.Agente) {
 	s.agentes.Store(&m)
 }
 
+// Agentes devolve o registro em vigor (muda com o SIGHUP).
+func (s *Server) Agentes() []agentes.Agente {
+	m := *s.agentes.Load()
+	out := make([]agentes.Agente, 0, len(m))
+	for _, a := range m {
+		out = append(out, a)
+	}
+	return out
+}
+
 func (s *Server) agente(id string) (agentes.Agente, bool) {
 	a, ok := (*s.agentes.Load())[id]
 	return a, ok

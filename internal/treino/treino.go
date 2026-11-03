@@ -1,8 +1,8 @@
 // Package treino é o chat de treino do atendente (specs/06): o operador do
-// tenant responde a ensaios em que o agens faz o papel de cliente. Esta fase
-// conduz a conversa e guarda o material; extração, perfil e efeito no
-// atendimento vêm nas fases seguintes (PLANO-DE-BUILD §7), então nada daqui
-// muda como o bot fala com os clientes.
+// tenant responde a ensaios em que o agens faz o papel de cliente e, ao
+// encerrar, o motor extrai o perfil de estilo. O perfil fica versionado na base
+// e ainda não chega ao atendimento (S19, PLANO-DE-BUILD §7): nada daqui muda como
+// o bot fala com os clientes.
 package treino
 
 import (
@@ -186,14 +186,13 @@ type Resposta struct {
 	SugerirEncerrar bool   `json:"sugerirEncerrar"`
 }
 
-// Encerramento é a resposta de POST /sessoes/{id}/encerrar. Até a fase de
-// aprendizado sai sempre pendente: a sessão fica guardada para a extração.
+// Encerramento é a resposta de POST /sessoes/{id}/encerrar.
 type Encerramento struct {
-	VersaoNova          *int  `json:"versaoNova"`
-	Mudancas            []any `json:"mudancas"`
-	AguardandoEvidencia []any `json:"aguardandoEvidencia"`
-	NotasNovas          []any `json:"notasNovas"`
-	ExtracaoPendente    bool  `json:"extracaoPendente"`
+	VersaoNova          *int         `json:"versaoNova"`
+	Mudancas            []Mudanca    `json:"mudancas"`
+	AguardandoEvidencia []Aguardando `json:"aguardandoEvidencia"`
+	NotasNovas          []NotaResumo `json:"notasNovas"`
+	ExtracaoPendente    bool         `json:"extracaoPendente,omitempty"`
 }
 
 // Abrir é o fluxo T-F1: devolve a sessão aberta do operador ou cria uma, com a
@@ -275,8 +274,9 @@ func (s *Servico) Mensagem(ctx context.Context, ag agentes.Agente, op Operador, 
 	return Resposta{Resposta: t.resposta, EnsaiosFeitos: t.ensaios, SugerirEncerrar: t.ensaios >= ensaiosSugestao}, nil
 }
 
-// Encerrar fecha a sessão. Chamar de novo devolve o mesmo resultado, porque o
-// sistema pode repetir depois de um timeout.
+// Encerrar é o fluxo T-F3: fecha a sessão, extrai e devolve o que mudou. Chamar
+// de novo não reaplica nada, porque o sistema pode repetir depois de um timeout:
+// devolve a versão gerada, sem o detalhe.
 func (s *Servico) Encerrar(ctx context.Context, ag agentes.Agente, op Operador, sessaoID string) (Encerramento, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(ag.Treino.Limites.TurnoTimeoutS)*time.Second)
 	defer cancel()
@@ -293,7 +293,11 @@ func (s *Servico) Encerrar(ctx context.Context, ag agentes.Agente, op Operador, 
 	if err := s.Store.EncerrarSessao(ctx, sess.ID, s.agora()); err != nil {
 		return Encerramento{}, err
 	}
-	return Encerramento{Mudancas: []any{}, AguardandoEvidencia: []any{}, NotasNovas: []any{}, ExtracaoPendente: true}, nil
+	// Relê com a trava: o estado mudou aqui ou numa chamada que estava na frente.
+	if sess, err = s.Store.SessaoTreino(ctx, ag.ID, op.Tenant, sessaoID); err != nil {
+		return Encerramento{}, err
+	}
+	return s.extrair(ctx, ag, sess)
 }
 
 // ultimaFala devolve a última fala do agens na sessão.

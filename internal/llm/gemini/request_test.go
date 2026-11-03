@@ -155,3 +155,20 @@ func TestBuildRequest_ThinkingBudgetNil(t *testing.T) {
 		t.Errorf("system_instruction nao deveria aparecer sem System: %#v", got)
 	}
 }
+
+// Com schema a chamada vai sem ferramentas: o Gemini recusa os dois juntos.
+func TestBuildRequest_SaidaEstruturada(t *testing.T) {
+	schema := map[string]any{"type": "object"}
+	gr := buildRequest(llm.GenerateRequest{
+		Tools:            []llm.ToolDecl{{Name: "x"}},
+		ResponseMimeType: "application/json",
+		ResponseSchema:   schema,
+	})
+	if len(gr.Tools) != 0 || gr.ToolConfig != nil {
+		t.Errorf("ferramentas junto com schema: %+v", gr.Tools)
+	}
+	cfg := gr.GenerationConfig
+	if cfg.ResponseMimeType != "application/json" || cfg.ResponseSchema == nil {
+		t.Errorf("generationConfig: %+v", cfg)
+	}
+}

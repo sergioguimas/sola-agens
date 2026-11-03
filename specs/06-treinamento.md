@@ -1,7 +1,7 @@
 # 06 — Modo de treinamento (perfil de estilo por tenant)
 
-> **TO-BE, em construção.** Alvo da fase **F2c**. A **fase 1 (chat de treino) existe no código** desde
-> 03/11/2026; o resto segue TO-BE (PLANO-DE-BUILD §7). A ordem da T12 foi invertida a pedido do Sérgio: a
+> **TO-BE, em construção.** Alvo da fase **F2c**. As **fases 1 (chat) e 2 (aprendizado) existem no código**
+> desde 03/11/2026; o resto segue TO-BE (PLANO-DE-BUILD §7). A ordem da T12 foi invertida a pedido do Sérgio: a
 > F2c começou **antes da F2a** (S18).
 > Decisões de origem: [docs/RODADA-5-TREINAMENTO.md](../docs/RODADA-5-TREINAMENTO.md) (T1–T12) e
 > CONTRATO §10 (rodada 5). Decisões tomadas ao escrever esta spec: §13 (S9–S17), para revisão.
@@ -349,6 +349,7 @@ CREATE TABLE sessoes_treino (
   estado        TEXT NOT NULL CHECK (estado IN ('aberta','encerrada','extraida','erro_extracao')),
   roteiro_json  TEXT NOT NULL,        -- {"feitos":{"preco":2,…}}
   versao_gerada INTEGER,              -- NULL = não gerou versão
+  tentativas_extracao INTEGER NOT NULL DEFAULT 0,   -- S29
   aberta_em     INTEGER NOT NULL,
   ultima_msg_em INTEGER NOT NULL,
   encerrada_em  INTEGER
@@ -538,10 +539,17 @@ memória sem pausar.
 | S23 | A fala do ensaio sempre aparece: se o texto do modelo não tem aspas, o motor a acrescenta. **Repetição não é ensaio novo:** mesmo cenário em seguida, ou a fala vista repetida entre aspas, mantém o vínculo com o cenário e não conta em `ensaiosFeitos` | Sessões reais: quando o operador sai do roteiro, o modelo repete o ensaio, às vezes com outras palavras ou sem a ferramenta. Sem isso a resposta seguinte perdia o par e a contagem inflava |
 | S24 | `registrar_preferencia` recusa citação que não seja trecho literal do operador e o motor ignora repetida (mesmo campo e valor) | Declarada entra no perfil com uma sessão (§7.3): não pode nascer de frase inventada. O histórico só tem texto, então o modelo não lembra do que já registrou |
 
-**Para a fase de aprendizado:** a mensagem seguinte a um ensaio é sempre gravada como `resposta_ensaio`,
-mesmo quando não responde a ele (preferência declarada, tentativa de injeção). A extração não pode
-tratar todo `resposta_ensaio` como exemplo: com S16, "ignore suas regras…" entraria com uma sessão.
-Métricas (§7.1) contam essas mensagens também.
+### 13.2 Decisões da fase 2 (03/11/2026, durante o build)
+
+| # | Decisão | Motivo |
+|---|---|---|
+| S25 | **Métricas depois da extração**, que aponta `paresForaDoRoteiro`: respostas que não atendem a um cliente (declaração, pergunta ao treinador, ordem). Elas ficam fora das métricas e dos exemplos | A mensagem seguinte a um ensaio é sempre gravada como `resposta_ensaio`. Sem isso, com S16, "ignore suas regras…" entraria como exemplo com uma sessão só |
+| S26 | **`AplicarExtracao` numa transação** substitui `FundirObservacoes`, `CriarNotas`, `GravarVersao` e `MarcarExtraida` da §10.1. A derivação do perfil roda dentro dela, por callback | Em chamadas separadas, cair no meio faria o retry contar a evidência duas vezes, e uma sessão valeria como as duas do T5 |
+| S27 | Valor de campo fechado passa por `canonizar` ("Você" → `voce`); o que não encaixa é descartado. Declaração com vários emojis vira uma observação por emoji | `registrar_preferencia` recebe texto livre, e o perfil só aceita o enum do Zod do Eliza. Visto nas sessões reais |
+| S28 | **Item de estilo com número, `%` ou `R$` vira nota**, mesmo que o modelo o classifique como estilo. Exemplos ficam de fora: a resposta real tem horário e preço, e o prompt já manda não copiar | T5: fato nunca entra sozinho. Isso não depende de o modelo acertar o `tipo` |
+| S29 | `tentativas_extracao` entra na 0003, que ainda não foi aplicada em nenhuma base. O job T-F4 roda pelo gancho `AoTick` da manutenção, a cada minuto, fora do controle diário | A §11 pede uma tentativa a mais e parar; sem contador o job tentaria para sempre. O runner só tinha job diário |
+| S31 | **A extração recebe as candidatas e as notas pendentes** (a §7.2 só previa o perfil ativo), com a ordem de repetir a redação das candidatas e de não anotar de novo o mesmo fato. **Limite conhecido:** continua dependendo do modelo. Em 4 baterias reais, 3 somaram evidência de texto livre; quando não soma, o padrão só demora mais a entrar, nunca entra errado | A fusão compara texto. Na 1ª bateria real, `saudacoes` e `tom` ficaram vazios depois de duas sessões iguais, porque o modelo redigia diferente a cada uma, e o mesmo preço virou duas notas. Comparar por significado exigiria embeddings ou outra chamada ao LLM |
+| S30 | Sessão sem resposta nem preferência não chama o LLM. Encerrar de novo devolve só `versaoNova`, sem o detalhe. `instrucoesIgnoradas` vai ao log só como contagem (a §14 falava em "no log") | O log do motor nunca leva texto de conversa, e essa lista descreve o que a pessoa escreveu |
 
 ## 14. Testes (o que o build precisa provar)
 

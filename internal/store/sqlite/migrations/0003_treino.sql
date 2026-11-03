@@ -10,6 +10,7 @@ CREATE TABLE sessoes_treino (
   estado        TEXT NOT NULL CHECK (estado IN ('aberta','encerrada','extraida','erro_extracao')),
   roteiro_json  TEXT NOT NULL,        -- {"feitos":{"preco":2},"preferencias":[]}
   versao_gerada INTEGER,              -- NULL = não gerou versão
+  tentativas_extracao INTEGER NOT NULL DEFAULT 0,
   aberta_em     INTEGER NOT NULL,
   ultima_msg_em INTEGER NOT NULL,
   encerrada_em  INTEGER

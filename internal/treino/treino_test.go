@@ -269,7 +269,7 @@ func TestLimitesDaMensagem(t *testing.T) {
 	}
 }
 
-func TestEncerrar(t *testing.T) {
+func TestEncerrarSessaoSemMaterialNaoChamaLLM(t *testing.T) {
 	s, f, st := montar(t, llm.TextoResp("Oi!"))
 	ctx := context.Background()
 	ab, err := s.Abrir(ctx, agenteTeste(), ana)
@@ -278,18 +278,18 @@ func TestEncerrar(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ { // repetir é seguro
 		e, err := s.Encerrar(ctx, agenteTeste(), ana, ab.SessaoID)
-		if err != nil || !e.ExtracaoPendente || e.VersaoNova != nil {
+		if err != nil || e.ExtracaoPendente || e.VersaoNova != nil {
 			t.Fatalf("encerrar %d: %+v err=%v", i, e, err)
 		}
 	}
 	if _, err := s.Mensagem(ctx, agenteTeste(), ana, ab.SessaoID, "oi"); !errors.Is(err, store.ErrSessaoEncerrada) {
 		t.Errorf("mensagem depois de encerrar: %v", err)
 	}
-	if sess, _ := st.SessaoTreino(ctx, "eliza", "org-1", ab.SessaoID); sess.Estado != store.SessaoEncerrada {
+	if sess, _ := st.SessaoTreino(ctx, "eliza", "org-1", ab.SessaoID); sess.Estado != store.SessaoExtraida {
 		t.Errorf("estado: %s", sess.Estado)
 	}
 	if len(f.Reqs) != 1 {
-		t.Errorf("encerrar não deveria chamar o LLM nesta fase: %d chamadas", len(f.Reqs))
+		t.Errorf("sessão vazia não deveria chamar o LLM: %d chamadas", len(f.Reqs))
 	}
 }
 

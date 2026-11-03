@@ -185,10 +185,19 @@ Para ligar, **nesta ordem** (o bloco com a env ausente ou com menos de 32 bytes 
 2. Descomente o bloco `treino` em `agentes/eliza.yaml`.
 3. Recarregue (SIGHUP) ou reinicie.
 
-A fase atual conduz a conversa e guarda as sessões; **nada muda no atendimento dos clientes**. Encerrar
-devolve `extracaoPendente: true`: as sessões ficam guardadas para a extração da próxima fase. Rode
-`go run ./avaliacao -treino` a cada mudança no prompt do treino. Cada sessão de 8 falas custa cerca de
-US$ 0,02, registrada em `turnos` com `modo='treino'`.
+Ao encerrar, o motor extrai o estilo e grava uma versão do perfil, mas **nada muda no atendimento dos
+clientes**: o perfil só entra no prompt depois da prévia (PLANO-DE-BUILD §7). Sessão parada por 30 minutos
+é encerrada pelo job da manutenção, que também repete uma vez a extração que falhou. Se falhar de novo,
+a sessão fica em `erro_extracao` e o log traz `treino: extração desistiu`.
+
+Rode `go run ./avaliacao -treino` a cada mudança nos prompts do treino. Ela chama o Gemini de verdade: uma
+sessão de 8 falas custa cerca de US$ 0,02, registrada em `turnos` com `modo='treino'`. A bateria roda duas.
+A checagem "texto livre soma evidência" pode reprovar de vez em quando (specs/06 S31): é variação do modelo
+e só atrasa o aprendizado. As demais reprovarem é sinal de problema.
+
+**A chave do Gemini é pré-paga.** Sem crédito a API responde `402` e tudo que usa o modelo para, inclusive
+o atendimento. Confira o saldo em AI Studio antes de rodar baterias repetidas. Depois de recarregar, a API
+leva alguns minutos para estabilizar e alterna `402` e `200` nesse intervalo (visto em 03/11).
 
 ## Retenção e apagamento
 

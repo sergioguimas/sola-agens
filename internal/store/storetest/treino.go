@@ -176,4 +176,216 @@ func RodarTreino(t *testing.T, nova func(t *testing.T) StoreTreinoFechavel) {
 			t.Fatalf("nova depois de encerrar: id=%s nova=%v err=%v", b.ID, nv, err)
 		}
 	})
+	encerrada := func(t *testing.T, s StoreTreinoFechavel, tenant, operador string) store.SessaoTreino {
+		t.Helper()
+		n := sessaoNova(operador)
+		n.Tenant = tenant
+		x, _, err := s.AbrirSessao(ctx, n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.EncerrarSessao(ctx, x.ID, base); err != nil {
+			t.Fatal(err)
+		}
+		return x
+	}
+	semMudanca := func([]store.Observacao, []byte) (store.Derivacao, error) { return store.Derivacao{}, nil }
+	extracao := func(x store.SessaoTreino, obs ...store.ObservacaoNova) store.Extracao {
+		return store.Extracao{Agente: x.Agente, Tenant: x.Tenant, SessaoID: x.ID, OperadorID: x.OperadorID,
+			Observacoes: obs, Derivar: semMudanca}
+	}
+	saudacao := store.ObservacaoNova{Campo: "saudacoes", Valor: "oi", ValorExibicao: "Oi", Origem: store.OrigemExtraida,
+		Citacao: "Oi", Ocorrencias: 2}
+
+	t.Run("fusão soma evidência entre sessões, não dentro da mesma", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		a := encerrada(t, s, "org-1", "u1")
+		res, err := s.AplicarExtracao(ctx, extracao(a, saudacao, saudacao))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Observacoes) != 1 || res.Observacoes[0].Sessoes != 1 || res.Observacoes[0].Ocorrencias != 4 {
+			t.Fatalf("primeira: %+v", res.Observacoes)
+		}
+		b := encerrada(t, s, "org-1", "u1")
+		res, err = s.AplicarExtracao(ctx, extracao(b, saudacao))
+		if err != nil {
+			t.Fatal(err)
+		}
+		o := res.Observacoes[0]
+		if o.Sessoes != 2 || o.Ocorrencias != 6 || o.UltimaSessao != b.ID || o.ValorExibicao != "Oi" {
+			t.Fatalf("segunda: %+v", o)
+		}
+	})
+
+	t.Run("declaração promove a observação", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		if _, err := s.AplicarExtracao(ctx, extracao(encerrada(t, s, "org-1", "u1"), saudacao)); err != nil {
+			t.Fatal(err)
+		}
+		decl := saudacao
+		decl.Origem = store.OrigemDeclarada
+		res, err := s.AplicarExtracao(ctx, extracao(encerrada(t, s, "org-1", "u1"), decl))
+		if err != nil || res.Observacoes[0].Origem != store.OrigemDeclarada {
+			t.Fatalf("%+v err=%v", res.Observacoes, err)
+		}
+	})
+
+	t.Run("sessão extraída não aplica de novo", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		a := encerrada(t, s, "org-1", "u1")
+		if _, err := s.AplicarExtracao(ctx, extracao(a, saudacao)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.AplicarExtracao(ctx, extracao(a, saudacao)); !errors.Is(err, store.ErrJaExtraida) {
+			t.Fatalf("segunda aplicação: %v", err)
+		}
+		l, err := s.SessaoTreino(ctx, "eliza", "org-1", a.ID)
+		if err != nil || l.Estado != store.SessaoExtraida || l.Tentativas != 1 {
+			t.Fatalf("sessão: %+v err=%v", l, err)
+		}
+	})
+
+	t.Run("falha ao derivar desfaz tudo", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		a := encerrada(t, s, "org-1", "u1")
+		e := extracao(a, saudacao)
+		e.Notas = []store.NotaNova{{ID: "n1", Texto: "abre domingo"}}
+		e.Derivar = func([]store.Observacao, []byte) (store.Derivacao, error) {
+			return store.Derivacao{}, errors.New("falhou")
+		}
+		if _, err := s.AplicarExtracao(ctx, e); err == nil {
+			t.Fatal("esperava erro")
+		}
+		// A observação e a nota não ficaram: reaplicar conta uma sessão só.
+		e.Derivar = semMudanca
+		res, err := s.AplicarExtracao(ctx, e)
+		if err != nil {
+			t.Fatalf("reaplicar: %v (nota duplicada?)", err)
+		}
+		if res.Observacoes[0].Ocorrencias != 2 {
+			t.Fatalf("evidência dobrou: %+v", res.Observacoes[0])
+		}
+	})
+
+	t.Run("versão nova fica ativa e só uma por tenant", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		mudou := func(perfil string) func([]store.Observacao, []byte) (store.Derivacao, error) {
+			return func([]store.Observacao, []byte) (store.Derivacao, error) {
+				return store.Derivacao{PerfilJSON: []byte(perfil), DiffJSON: []byte(`[]`), Mudou: true}, nil
+			}
+		}
+		for i, perfil := range []string{`{"v":1}`, `{"v":2}`} {
+			e := extracao(encerrada(t, s, "org-1", "u1"))
+			e.Derivar = mudou(perfil)
+			res, err := s.AplicarExtracao(ctx, e)
+			if err != nil || res.Versao == nil || *res.Versao != i+1 {
+				t.Fatalf("versão %d: %+v err=%v", i+1, res.Versao, err)
+			}
+		}
+		raw, v, err := s.PerfilAtivo(ctx, "eliza", "org-1")
+		if err != nil || v != 2 || string(raw) != `{"v":2}` {
+			t.Fatalf("ativo: v%d %s err=%v", v, raw, err)
+		}
+		// O perfil chega à derivação seguinte, e outro tenant não o vê.
+		e := extracao(encerrada(t, s, "org-1", "u1"))
+		e.Derivar = func(_ []store.Observacao, ativo []byte) (store.Derivacao, error) {
+			if string(ativo) != `{"v":2}` {
+				t.Errorf("ativo na derivação: %s", ativo)
+			}
+			return store.Derivacao{}, nil
+		}
+		if _, err := s.AplicarExtracao(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+		raw, v, err = s.PerfilAtivo(ctx, "eliza", "org-2")
+		if err != nil || v != 0 || raw != nil {
+			t.Fatalf("outro tenant: v%d %s err=%v", v, raw, err)
+		}
+	})
+
+	t.Run("observações não atravessam tenant", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		if _, err := s.AplicarExtracao(ctx, extracao(encerrada(t, s, "org-1", "u1"), saudacao)); err != nil {
+			t.Fatal(err)
+		}
+		res, err := s.AplicarExtracao(ctx, extracao(encerrada(t, s, "org-2", "u9")))
+		if err != nil || len(res.Observacoes) != 0 {
+			t.Fatalf("outro tenant: %+v err=%v", res.Observacoes, err)
+		}
+	})
+
+	t.Run("leitura de observações e notas fica no tenant", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		e := extracao(encerrada(t, s, "org-1", "u1"), saudacao)
+		e.Notas = []store.NotaNova{{ID: "n1", Texto: "abre domingo"}}
+		if _, err := s.AplicarExtracao(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+		obs, err := s.Observacoes(ctx, "eliza", "org-1")
+		if err != nil || len(obs) != 1 || obs[0].Valor != "oi" {
+			t.Fatalf("observações: %+v err=%v", obs, err)
+		}
+		notas, err := s.NotasPendentes(ctx, "eliza", "org-1")
+		if err != nil || len(notas) != 1 || notas[0] != "abre domingo" {
+			t.Fatalf("notas: %+v err=%v", notas, err)
+		}
+		if o, _ := s.Observacoes(ctx, "eliza", "org-2"); len(o) != 0 {
+			t.Errorf("observações de outro tenant: %+v", o)
+		}
+		if n, _ := s.NotasPendentes(ctx, "eliza", "org-2"); len(n) != 0 {
+			t.Errorf("notas de outro tenant: %+v", n)
+		}
+	})
+
+	t.Run("sessão aberta não é extraída", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		a, _, err := s.AbrirSessao(ctx, sessaoNova("u1"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.AplicarExtracao(ctx, extracao(a)); err == nil {
+			t.Fatal("esperava erro")
+		}
+	})
+
+	t.Run("pendentes respeitam as tentativas e inativas o prazo", func(t *testing.T) {
+		s := nova(t)
+		defer s.Close()
+		a := encerrada(t, s, "org-1", "u1")
+		ids := func(l []store.SessaoTreino) int { return len(l) }
+		l, err := s.SessoesPendentes(ctx, "eliza", 2)
+		if err != nil || ids(l) != 1 || l[0].ID != a.ID {
+			t.Fatalf("pendentes: %+v err=%v", l, err)
+		}
+		for i := 0; i < 2; i++ {
+			if err := s.MarcarErroExtracao(ctx, a.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if l, _ = s.SessoesPendentes(ctx, "eliza", 2); ids(l) != 0 {
+			t.Fatalf("depois de 2 falhas: %+v", l)
+		}
+		b, _, err := s.AbrirSessao(ctx, sessaoNova("u2"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if l, _ = s.SessoesInativas(ctx, "eliza", b.UltimaMsgEm); ids(l) != 0 {
+			t.Fatalf("no limite ainda não é inativa: %+v", l)
+		}
+		if l, _ = s.SessoesInativas(ctx, "eliza", b.UltimaMsgEm.Add(time.Second)); ids(l) != 1 {
+			t.Fatalf("inativas: %+v", l)
+		}
+		if l, _ = s.SessoesInativas(ctx, "site", futuro); ids(l) != 0 {
+			t.Fatalf("outro agente: %+v", l)
+		}
+	})
 }

@@ -103,3 +103,38 @@ func TestExpurgoAlcancaMensagensDeTreino(t *testing.T) {
 		t.Errorf("conteúdos depois do expurgo: %v, %v", msgs[0].Conteudo, msgs[1].Conteudo)
 	}
 }
+
+// Rejeitada continua rejeitada com evidência nova (specs/06 §7.3). A rota de
+// rejeitar é da fase do painel; aqui o estado é posto direto na base.
+func TestFusaoNaoRessuscitaRejeitada(t *testing.T) {
+	s := abrir(t)
+	defer s.Close()
+	ctx := context.Background()
+	aplicar := func() store.ResultadoExtracao {
+		t.Helper()
+		x, _, err := s.AbrirSessao(ctx, store.SessaoNova{Agente: "eliza", Tenant: "org-1", OperadorID: "u1",
+			RoteiroJSON: []byte(`{}`), LimiteDia: 10})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.EncerrarSessao(ctx, x.ID, relogio()); err != nil {
+			t.Fatal(err)
+		}
+		res, err := s.AplicarExtracao(ctx, store.Extracao{Agente: "eliza", Tenant: "org-1", SessaoID: x.ID, OperadorID: "u1",
+			Observacoes: []store.ObservacaoNova{{Campo: "tom", Valor: "seca", ValorExibicao: "seca",
+				Origem: store.OrigemExtraida, Ocorrencias: 1}},
+			Derivar: func([]store.Observacao, []byte) (store.Derivacao, error) { return store.Derivacao{}, nil }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+	aplicar()
+	if _, err := s.db.ExecContext(ctx, `UPDATE observacoes SET estado = 'rejeitada'`); err != nil {
+		t.Fatal(err)
+	}
+	res := aplicar()
+	if o := res.Observacoes[0]; o.Estado != store.ObservacaoRejeitada || o.Sessoes != 2 {
+		t.Fatalf("observação: %+v", o)
+	}
+}

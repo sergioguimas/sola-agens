@@ -189,7 +189,7 @@ func TestFluxoDoChat(t *testing.T) {
 		t.Fatalf("encerrar: %d %s", rec.Code, rec.Body.String())
 	}
 	// As listas saem [] e não null: o Zod do Eliza exige array.
-	for _, campo := range []string{`"versaoNova":null`, `"mudancas":[]`, `"aguardandoEvidencia":[]`, `"notasNovas":[]`, `"extracaoPendente":true`} {
+	for _, campo := range []string{`"versaoNova":null`, `"mudancas":[]`, `"aguardandoEvidencia":[]`, `"notasNovas":[]`} {
 		if !strings.Contains(rec.Body.String(), campo) {
 			t.Errorf("encerrar sem %s: %s", campo, rec.Body.String())
 		}

@@ -31,6 +31,11 @@ type GenerateRequest struct {
 	// distinguir "nao configurado" de "configurado como zero" sem
 	// inventar um numero magico.
 	ThinkingBudget *int
+	// ResponseMimeType e ResponseSchema pedem saida estruturada (specs/06
+	// §9.2). O Gemini nao aceita ferramentas na mesma chamada: com schema, as
+	// Tools sao ignoradas.
+	ResponseMimeType string
+	ResponseSchema   map[string]any
 }
 
 // Turn e um turno da conversa: Role "user" ou "model".

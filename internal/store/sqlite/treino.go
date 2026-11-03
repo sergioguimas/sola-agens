@@ -13,14 +13,19 @@ import (
 
 var _ store.StoreTreino = (*Store)(nil)
 
-const colunasSessao = `id, agente, tenant, operador_id, estado, roteiro_json, aberta_em, ultima_msg_em, encerrada_em`
+const colunasSessao = `id, agente, tenant, operador_id, estado, roteiro_json, aberta_em, ultima_msg_em, encerrada_em,
+  versao_gerada, tentativas_extracao`
 
-func lerSessao(row *sql.Row) (store.SessaoTreino, error) {
+// linha é o que *sql.Row e *sql.Rows têm em comum.
+type linha interface{ Scan(dest ...any) error }
+
+func lerSessao(row linha) (store.SessaoTreino, error) {
 	var s store.SessaoTreino
 	var roteiro string
 	var aberta, ultima int64
-	var encerrada sql.NullInt64
-	err := row.Scan(&s.ID, &s.Agente, &s.Tenant, &s.OperadorID, &s.Estado, &roteiro, &aberta, &ultima, &encerrada)
+	var encerrada, versao sql.NullInt64
+	err := row.Scan(&s.ID, &s.Agente, &s.Tenant, &s.OperadorID, &s.Estado, &roteiro, &aberta, &ultima, &encerrada,
+		&versao, &s.Tentativas)
 	if errors.Is(err, sql.ErrNoRows) {
 		return s, store.ErrNaoEncontrado
 	}
@@ -32,6 +37,10 @@ func lerSessao(row *sql.Row) (store.SessaoTreino, error) {
 	if encerrada.Valid {
 		t := deMs(encerrada.Int64)
 		s.EncerradaEm = &t
+	}
+	if versao.Valid {
+		v := int(versao.Int64)
+		s.VersaoGerada = &v
 	}
 	return s, nil
 }
