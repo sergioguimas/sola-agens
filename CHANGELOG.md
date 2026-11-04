@@ -7,6 +7,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não publicado]
 
+## [1.2.0] - 2026-11-04
+
 ### Adicionado
 
 - Canal web: entrada `POST /a/{agente}/v1/web` para o chat da página pública do Eliza. O agente aconselha, consulta catálogo e horários e devolve ações que preenchem o formulário; nunca grava nada. Documento e telefone digitados são mascarados antes de ir ao modelo e à base, o texto das conversas some em 7 dias e há teto diário de turnos por organização. Vem desligado (bloco `web` no registro do agente). Bateria: `go run ./avaliacao -web`.
@@ -41,6 +43,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Plataforma interna de atendente (bot LLM) da Sola em Go, com o Eliza como primeiro sistema: lê a OpenAPI do sistema em tempo de execução, atende por WhatsApp em texto e áudio, identifica o cliente pelo ticket do sistema, confirma e cancela pelo fastpath, pausa quando a equipe responde pelo celular e trata avisos do sistema (lembretes) sem pausar.
 - Multi-tenant (agente + tenant) com configuração em camadas (motor → sistema → tenant), store SQLite com retenção de 90 dias e bateria de avaliação com Gemini real.
 
-[Não publicado]: https://github.com/sergioguimas/sola-agens/compare/v1.1.0...HEAD
+[Não publicado]: https://github.com/sergioguimas/sola-agens/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/sergioguimas/sola-agens/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/sergioguimas/sola-agens/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/sergioguimas/sola-agens/releases/tag/v1.0.0
