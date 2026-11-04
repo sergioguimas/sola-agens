@@ -42,6 +42,10 @@ type Config struct {
 	Precos map[string]string
 }
 
+// MinAdminToken é o tamanho mínimo de AGENS_ADMIN_TOKEN quando definido:
+// 32 caracteres (128 bits em hex); o .env.example gera 64.
+const MinAdminToken = 32
+
 // lookupFunc é o formato de os.LookupEnv.
 type lookupFunc func(key string) (string, bool)
 
@@ -77,6 +81,9 @@ func LoadConfigFrom(lookup lookupFunc) (*Config, error) {
 
 	if cfg.GeminiAPIKey == "" {
 		return nil, fmt.Errorf("GEMINI_API_KEY é obrigatória")
+	}
+	if cfg.AdminToken != "" && len(cfg.AdminToken) < MinAdminToken {
+		return nil, fmt.Errorf("AGENS_ADMIN_TOKEN curto demais (mínimo %d caracteres; gere com openssl rand -hex 32)", MinAdminToken)
 	}
 	if _, _, err := net.SplitHostPort(cfg.Listen); err != nil {
 		return nil, fmt.Errorf("AGENS_LISTEN inválido (%q): %w", cfg.Listen, err)

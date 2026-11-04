@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"sola-agens/internal/agentes"
+	"sola-agens/internal/saida"
 )
 
 // esperasBoot são as pausas entre as 5 tentativas de baixar a spec (specs/02 §1).
@@ -40,7 +41,7 @@ func Carregar(ctx context.Context, cli *http.Client, ag agentes.Agente) ([]byte,
 
 func carregar(ctx context.Context, cli *http.Client, url, token string, esperas []time.Duration, espera esperaFunc) ([]byte, error) {
 	if cli == nil {
-		cli = http.DefaultClient
+		cli = saida.Cliente(0)
 	}
 	var ultimo error
 	for i := 0; i < len(esperas); i++ { // DECISÃO: 5 tentativas; a espera de 32 s só existiria depois da última

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"sola-agens/internal/atendimento"
 	"sola-agens/internal/llm"
 	"sola-agens/internal/mensagem"
+	"sola-agens/internal/saida"
 	"sola-agens/internal/store"
 	"sola-agens/internal/store/sqlite"
 )
@@ -100,7 +100,7 @@ func Preparar(ctx context.Context, o Opcoes) (*Bancada, error) {
 	fab := &atendimento.Fabrica{
 		Dir:     o.AgentesDir,
 		Lookup:  func(k string) (string, bool) { v, ok := env[k]; return v, ok },
-		Cliente: &http.Client{Timeout: 30 * time.Second},
+		Cliente: saida.Cliente(30 * time.Second),
 		Timeout: 10 * time.Second,
 		Modelo:  o.Modelo,
 		Log:     log,

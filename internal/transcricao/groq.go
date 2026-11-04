@@ -3,8 +3,10 @@ package transcricao
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -15,6 +17,10 @@ import (
 
 // timeoutGroq e o prazo por chamada (specs/04 §2.6).
 const timeoutGroq = 90 * time.Second
+
+// maxRespostaGroq limita o corpo lido da resposta (texto puro): 1 MB cobre com
+// folga a transcricao de um audio dentro de audio_max_s.
+const maxRespostaGroq = 1 << 20
 
 // backoffsGroq: mesma tabela de espera de internal/llm/gemini/retry.go
 // (specs/04 §2.4: 1s, 2s, 4s, 8s — 5 tentativas no total).
@@ -107,11 +113,14 @@ func (g *groqTranscritor) Transcrever(ctx context.Context, audio []byte, mimetyp
 		if doErr != nil {
 			lastErr = doErr
 		} else {
-			respBody, readErr := io.ReadAll(resp.Body)
+			respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, maxRespostaGroq+1))
 			resp.Body.Close()
 			if readErr != nil {
 				lastErr = readErr
 			} else if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				if len(respBody) > maxRespostaGroq {
+					return "", Uso{}, fmt.Errorf("transcricao: groq status %d com resposta grande demais", resp.StatusCode)
+				}
 				return strings.TrimSpace(string(respBody)), Uso{}, nil
 			} else if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusBadRequest {
 				return "", Uso{}, fmt.Errorf("transcricao: groq status %d", resp.StatusCode)
@@ -175,11 +184,22 @@ func montarMultipart(audio []byte, mimetype, modelo, idioma string) (*bytes.Buff
 // createFilePart e multipart.Writer.CreateFormFile, mas com o
 // Content-Type do arquivo explicito (CreateFormFile fixa sempre
 // application/octet-stream) — o Groq espera o mimetype real do audio.
+// O mimetype vem do sistema: e validado e reescrito (mime.ParseMediaType +
+// FormatMediaType) porque o multipart.Writer grava o header sem escapar, e um
+// \r\n no valor abriria headers extras na parte.
 func createFilePart(w *multipart.Writer, fieldname, filename, contentType string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldname, filename))
 	if contentType != "" {
-		h.Set("Content-Type", contentType)
+		mt, params, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			return nil, fmt.Errorf("mimetype inválido: %w", err)
+		}
+		ct := mime.FormatMediaType(mt, params)
+		if ct == "" {
+			return nil, errors.New("mimetype inválido")
+		}
+		h.Set("Content-Type", ct)
 	}
 	return w.CreatePart(h)
 }

@@ -19,6 +19,7 @@ import (
 
 	"sola-agens/internal/agentes"
 	"sola-agens/internal/openapi"
+	"sola-agens/internal/saida"
 )
 
 // Identidade vem do turno, nunca do LLM. F1 (encaminhado): só o ticket.
@@ -132,7 +133,7 @@ var _ Executor = (*HTTP)(nil)
 
 // NovoHTTP cria o executor com o timeout por chamada.
 func NovoHTTP(cfg Config, timeout time.Duration) *HTTP {
-	return &HTTP{Config: cfg, Cliente: &http.Client{}, Timeout: timeout, Esperar: esperar}
+	return &HTTP{Config: cfg, Cliente: saida.Cliente(0), Timeout: timeout, Esperar: esperar}
 }
 
 func esperar(ctx context.Context, d time.Duration) error {
@@ -307,7 +308,7 @@ func (h *HTTP) uma(ctx context.Context, metodo string, r requisicao, id Identida
 
 	cli := h.Cliente
 	if cli == nil {
-		cli = http.DefaultClient
+		cli = saida.Cliente(0)
 	}
 	resp, err := cli.Do(req)
 	if err != nil {
