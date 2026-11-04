@@ -142,6 +142,34 @@ func TestVoltarVersaoRejeitaOQueEntrouDepois(t *testing.T) {
 	}
 }
 
+// Achado na tela em 03/11: remover um padrão e voltar à versão que o tinha deixava
+// o perfil e a lista de removidas se contradizendo, e o treino seguinte o tirava
+// sem ninguém pedir.
+func TestVoltarVersaoRestauraOQueEstavaNela(t *testing.T) {
+	s, f, st := montar(t)
+	ctx := context.Background()
+	duasSessoes(t, s, f)
+	_, antes := perfilAtivo(t, st)
+	id := idDe(t, st, "saudacoes")
+	if _, err := s.MudarObservacao(ctx, agenteTeste(), ana, id, store.ObservacaoRejeitada); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AtivarVersao(ctx, agenteTeste(), ana, antes); err != nil {
+		t.Fatal(err)
+	}
+	obs, _ := s.Observacoes(ctx, agenteTeste(), ana, store.ObservacaoRejeitada)
+	if len(obs.Observacoes) != 0 {
+		t.Fatalf("perfil e removidas se contradizem: %+v", obs.Observacoes)
+	}
+	sessao := sessaoRoteirizada(t, s, f, saida(t, saidaExtracao{}))
+	if _, err := s.Encerrar(ctx, agenteTeste(), ana, sessao); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := perfilAtivo(t, st); len(p.Saudacoes) != 1 {
+		t.Fatalf("o treino seguinte tirou o que a versão tinha: %+v", p.Saudacoes)
+	}
+}
+
 func TestAtivarVersaoEmVigorNaoCriaVersao(t *testing.T) {
 	s, f, st := montar(t)
 	ctx := context.Background()

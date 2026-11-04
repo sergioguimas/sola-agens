@@ -218,5 +218,5 @@ sai em branch, e nada chega a cliente real antes da fase 4.
 **Em paralelo, no repo do Eliza:** contrato 10 (página `/configuracoes/atendente`), que pode ser feito
 contra um agens falso e já tem API real para a aba Treinar.
 
-**Próximo passo sem bloqueio:** o contrato 10 no Eliza, que já tem API real para todas as abas menos a
-Prévia. O contrato foi atualizado com a assinatura nova (S32).
+**Contrato 10 no Eliza:** feito em 03/11, menos a Prévia (branch `feat/treino-atendente` de lá). Exercitado
+na tela contra este motor com o Gemini real.

@@ -84,7 +84,9 @@ type Ativacao struct {
 
 // AtivarVersao é o fluxo T-F6: grava uma versão nova com o perfil de n e rejeita
 // o que entrou depois dela, senão a próxima sessão traria de volta o que o
-// operador quis desfazer (S13). Voltar para a versão em vigor não muda nada.
+// operador quis desfazer (S13). O que está em n e tinha sido removido é
+// restaurado, senão a próxima derivação o tiraria sem ninguém pedir (S34). Voltar
+// para a versão em vigor não muda nada.
 func (s *Servico) AtivarVersao(ctx context.Context, ag agentes.Agente, op Operador, n int) (Ativacao, error) {
 	alvoJSON, err := s.Store.Versao(ctx, ag.ID, op.Tenant, n)
 	if err != nil {
@@ -112,7 +114,10 @@ func (s *Servico) AtivarVersao(ctx context.Context, ag agentes.Agente, op Operad
 			}
 			d := store.Derivacao{PerfilJSON: alvoJSON, DiffJSON: diff, Mudou: true}
 			for _, o := range obs {
-				if elegivel(o) && atual.contem(o) && !alvo.contem(o) {
+				switch {
+				case o.Estado == store.ObservacaoRejeitada && alvo.contem(o):
+					d.Restaurar = append(d.Restaurar, o.ID)
+				case elegivel(o) && atual.contem(o) && !alvo.contem(o):
 					d.Rejeitar = append(d.Rejeitar, o.ID)
 					out.Rejeitadas = append(out.Rejeitadas, Rejeitada{ID: o.ID, Campo: o.Campo, Valor: o.ValorExibicao})
 				}

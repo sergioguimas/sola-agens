@@ -142,9 +142,10 @@ type Derivacao struct {
 	PerfilJSON []byte
 	DiffJSON   []byte
 	Mudou      bool
-	// Rejeitar são observações que saem junto com esta versão (S13). Só vale em
-	// EditarPerfil.
-	Rejeitar []string
+	// Rejeitar e Restaurar acompanham a volta de versão (S13, S34): o que saiu com
+	// ela e o que voltou com ela. Só valem em EditarPerfil.
+	Rejeitar  []string
+	Restaurar []string
 }
 
 // Edicao é uma mudança feita pelo operador no painel. Roda numa transação:

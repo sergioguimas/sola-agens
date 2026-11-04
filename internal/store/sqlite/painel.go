@@ -104,6 +104,9 @@ func (s *Store) EditarPerfil(ctx context.Context, e store.Edicao) (store.Resulta
 		if err := mudar(d.Rejeitar, store.ObservacaoRejeitada); err != nil {
 			return err
 		}
+		if err := mudar(d.Restaurar, store.ObservacaoCandidata); err != nil {
+			return err
+		}
 		if d.Mudou {
 			v, err := gravarVersao(ctx, tx, e.Agente, e.Tenant, e.OperadorID, e.Origem, d, agora)
 			if err != nil {
