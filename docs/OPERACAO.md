@@ -200,6 +200,18 @@ e só atrasa o aprendizado. As demais reprovarem é sinal de problema.
 o atendimento. Confira o saldo em AI Studio antes de rodar baterias repetidas. Depois de recarregar, a API
 leva alguns minutos para estabilizar e alterna `402` e `200` nesse intervalo (visto em 03/11).
 
+## Canal web
+
+Vem desligado: sem o bloco `web` em `agentes/eliza.yaml`, a rota responde `404 WEB_DESLIGADO`. Para ligar,
+**nesta ordem** (o boot falha se o bloco existir e a spec do sistema não tiver `x-atendente-publico`):
+
+1. Faça o deploy do Eliza com o contrato 08, que serve as marcas na spec.
+2. Descomente o bloco `web` e recarregue (SIGHUP) ou reinicie.
+3. Ligue a org: `canal_web = true` em `autoatendimento_config`.
+
+O texto das conversas `web:` zera em 7 dias, e o teto padrão é de 300 turnos por org por dia. Rode
+`go run ./avaliacao -web` a cada mudança no prompt do canal: uma rodada custa cerca de US$ 0,05.
+
 ## Retenção e apagamento
 
 Um job diário (hora em `AGENS_MANUTENCAO_HORA`, fuso `AGENS_TZ`; recupera até 3 dias perdidos) apaga o

@@ -103,6 +103,26 @@ func (t *Treino) PapelPermitido(papel string) bool {
 	return slices.Contains(t.Papeis, papel)
 }
 
+// Web liga o canal web do agente (specs/07 §2). Sem o bloco, o canal fica
+// desligado. Zero no yaml = padrão.
+type Web struct {
+	TetoTurnosDiaOrg int `yaml:"teto_turnos_dia_org"`
+	TurnoTimeoutS    int `yaml:"turno_timeout_s"`
+}
+
+func (w *Web) validar() error {
+	if w.TetoTurnosDiaOrg == 0 {
+		w.TetoTurnosDiaOrg = 300
+	}
+	if w.TurnoTimeoutS == 0 {
+		w.TurnoTimeoutS = 40
+	}
+	if w.TetoTurnosDiaOrg < 0 || w.TurnoTimeoutS < 0 {
+		return errors.New("web: limites negativos")
+	}
+	return nil
+}
+
 // Agente é um sistema registrado no motor.
 type Agente struct {
 	ID             string            `yaml:"id"`
@@ -114,6 +134,7 @@ type Agente struct {
 	Limites        Limites           `yaml:"limites"`
 	Modelo         string            `yaml:"modelo"` // vazio = AGENS_MODEL
 	Treino         *Treino           `yaml:"treino"` // nil = modo de treino desligado
+	Web            *Web              `yaml:"web"`    // nil = canal web desligado
 
 	// Valores resolvidos das envs; nunca logar.
 	segredo       string
@@ -296,6 +317,11 @@ func (a *Agente) validar(lookup func(string) (string, bool)) error {
 
 	if a.Treino != nil {
 		if a.segredoTreino, err = a.Treino.validar(env); err != nil {
+			return err
+		}
+	}
+	if a.Web != nil {
+		if err := a.Web.validar(); err != nil {
 			return err
 		}
 	}

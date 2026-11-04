@@ -44,6 +44,7 @@ func executar(ctx context.Context, args []string, out, errw io.Writer) int {
 	agentes := fs.String("agentes", "", "diretório agentes/ (padrão: ./agentes)")
 	verboso := fs.Bool("v", false, "mostra as respostas enviadas ao cliente (texto de teste)")
 	soTreino := fs.Bool("treino", false, "roda só a sessão roteirizada do chat de treino (specs/06)")
+	soWeb := fs.Bool("web", false, "roda só a bateria do canal web (specs/07)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -130,6 +131,14 @@ func executar(ctx context.Context, args []string, out, errw io.Writer) int {
 		return 2
 	}
 	defer b.Fechar()
+
+	if *soWeb {
+		fmt.Fprintf(out, "modelo %s · canal web\n\n", *modelo)
+		if b.RodarWeb(ctx, out, *verboso) {
+			return 0
+		}
+		return 1
+	}
 
 	fmt.Fprintf(out, "modelo %s · %d cenário(s) × %d · temperatura %g\n\n", *modelo, len(cenarios), *vezes, cfg.Temperature)
 	var todos []Resultado

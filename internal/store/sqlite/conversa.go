@@ -217,6 +217,26 @@ func (s *Store) ExpurgarTexto(ctx context.Context, antesDe time.Time) (int64, er
 	return total, nil
 }
 
+// ExpurgarTextoWeb implementa store.Store. Conversa anônima não tem titular para
+// pedir apagamento: guardar pouco é a única proteção (W5).
+func (s *Store) ExpurgarTextoWeb(ctx context.Context, antesDe time.Time) (int64, error) {
+	r, err := s.db.ExecContext(ctx,
+		`UPDATE mensagens SET conteudo = NULL WHERE contato LIKE 'web:%' AND criada_em < ? AND conteudo IS NOT NULL`, ms(antesDe))
+	if err != nil {
+		return 0, err
+	}
+	return r.RowsAffected()
+}
+
+// ContarTurnosWeb implementa store.Store.
+func (s *Store) ContarTurnosWeb(ctx context.Context, agente, tenant string, desde time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM turnos WHERE agente = ? AND tenant = ? AND contato LIKE 'web:%' AND criado_em >= ?`,
+		agente, tenant, ms(desde)).Scan(&n)
+	return n, err
+}
+
 // ApagarContato apaga mensagens e conversa e troca o contato por sha256 completo
 // nos turnos (specs/01 §9). Idempotente.
 func (s *Store) ApagarContato(ctx context.Context, id store.ConversaID) error {
