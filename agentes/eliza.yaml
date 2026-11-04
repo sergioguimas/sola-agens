@@ -34,6 +34,11 @@ limites:
   audio_max_s: 120
   turno_timeout_s: 90
 # modelo: gemini-3.6-flash   # opcional; padrão AGENS_MODEL
+# Canal web da página pública (specs/07). Só ligue com o Eliza servindo as marcas
+# x-atendente-publico na spec: sem elas o boot falha.
+# web:
+#   teto_turnos_dia_org: 300
+#   turno_timeout_s: 40
 # Chat de treino (specs/06). Só descomente depois de definir ELIZA_TREINO_SECRET
 # (32 bytes ou mais): a env ausente derruba o boot. Ver docs/OPERACAO.md.
 # treino:

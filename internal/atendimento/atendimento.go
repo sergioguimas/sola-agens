@@ -72,6 +72,10 @@ func (f *Fabrica) Montar(ctx context.Context) (*Conjunto, error) {
 		if err != nil {
 			return nil, fmt.Errorf("agente %s: %w", reg.ID, err)
 		}
+		// Canal ligado sem nada público: o chat existiria sem poder consultar nada.
+		if reg.Web != nil && !temPublica(tools) {
+			return nil, fmt.Errorf("agente %s: bloco web sem operação x-atendente-publico na spec", reg.ID)
+		}
 		// Typo no yaml: o fastpath ficaria desligado em silêncio.
 		for campo, op := range map[string]string{"confirmar": reg.Operacoes.Confirmar, "cancelar": reg.Operacoes.Cancelar} {
 			if op != "" && !temFerramenta(tools, op) {
@@ -96,6 +100,15 @@ func (f *Fabrica) Montar(ctx context.Context) (*Conjunto, error) {
 	return c, nil
 }
 
+func temPublica(l []openapi.Ferramenta) bool {
+	for _, f := range l {
+		if f.Publica {
+			return true
+		}
+	}
+	return false
+}
+
 func temFerramenta(l []openapi.Ferramenta, nome string) bool {
 	for _, f := range l {
 		if f.Decl.Name == nome {
@@ -116,6 +129,9 @@ type Servico struct {
 	log     *slog.Logger
 	// AoTrocar é chamado depois de cada troca bem-sucedida (o main atualiza o httpapi).
 	AoTrocar func([]agentes.Agente)
+
+	motor *agent.Motor
+	trava trava.Trava
 }
 
 var _ httpapi.Handler = (*Servico)(nil)
@@ -125,6 +141,7 @@ type Opcoes struct {
 	Conjunto     *Conjunto
 	Fabrica      *Fabrica // opcional; sem ela, Recarregar devolve erro
 	Runner       worker.Runner
+	Motor        *agent.Motor // canal web; nil = desligado
 	Trava        trava.Trava
 	MaxConversas int
 	Relogio      debounce.Relogio // nil = tempo real
@@ -137,7 +154,7 @@ func Novo(o Opcoes) *Servico {
 	if log == nil {
 		log = slog.Default()
 	}
-	s := &Servico{fabrica: o.Fabrica, log: log}
+	s := &Servico{fabrica: o.Fabrica, log: log, motor: o.Motor, trava: o.Trava}
 	s.atual.Store(o.Conjunto)
 	s.Pool = worker.New(o.Runner, o.Trava, log)
 	s.Deb = debounce.New(s.entregar, o.MaxConversas, o.Relogio)
@@ -208,6 +225,25 @@ func (s *Servico) DeMim(_ context.Context, ag agentes.Agente, e entrada.Entrada)
 	c := conversaDe(ag, e)
 	s.Deb.Flush(c)
 	return traduz(s.Pool.EnfileirarDeMim(rt, c, e.Mensagem))
+}
+
+// TurnoWeb atende o canal web (specs/07): síncrono, fora do debounce e da fila,
+// mas com a mesma trava por conversa, para duas abas não atropelarem o histórico.
+func (s *Servico) TurnoWeb(ctx context.Context, ag agentes.Agente, m entrada.MensagemWeb) (entrada.RespostaWeb, error) {
+	rt, err := s.agente(ag.ID)
+	if err != nil {
+		return entrada.RespostaWeb{}, err
+	}
+	if s.motor == nil {
+		return entrada.RespostaWeb{}, agent.ErrWebIndisponivel
+	}
+	id := store.ConversaID{Agente: ag.ID, Tenant: m.OrgID, Contato: m.Contato}
+	liberar, err := s.trava.Adquirir(ctx, id.Chave())
+	if err != nil {
+		return entrada.RespostaWeb{}, err
+	}
+	defer liberar()
+	return s.motor.TurnoWeb(ctx, rt, m)
 }
 
 // Recarregar monta um conjunto novo e troca (SIGHUP, F6). Inválido: mantém o

@@ -18,6 +18,8 @@ const (
 	janelaCatchUp = 3
 	// RetencaoEventos é o prazo de eventos e ecos (specs/01 §9).
 	RetencaoEventos = 7 * 24 * time.Hour
+	// RetencaoWeb é o prazo do texto das conversas anônimas (W5).
+	RetencaoWeb = 7 * 24 * time.Hour
 )
 
 // Runner executa os jobs de manutenção.
@@ -64,6 +66,11 @@ func (r *Runner) retencao(ctx context.Context, dia time.Time) error {
 	if err != nil {
 		return fmt.Errorf("expurgar texto: %w", err)
 	}
+	web, err := r.Store.ExpurgarTextoWeb(ctx, agora.Add(-RetencaoWeb))
+	if err != nil {
+		return fmt.Errorf("expurgar texto web: %w", err)
+	}
+	textos += web
 	eventos, err := r.Store.ApagarEventosEcos(ctx, agora.Add(-RetencaoEventos))
 	if err != nil {
 		return fmt.Errorf("apagar eventos e ecos: %w", err)

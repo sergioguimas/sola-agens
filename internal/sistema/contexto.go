@@ -53,6 +53,7 @@ const (
 	SituacaoIdentificado = "identificado"
 	SituacaoDesconhecido = "desconhecido"
 	SituacaoAmbiguo      = "ambiguo"
+	SituacaoVisitante    = "visitante"
 )
 
 type ClienteIdentificado struct {

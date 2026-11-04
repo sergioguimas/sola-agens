@@ -32,6 +32,8 @@ type Ferramenta struct {
 	Caminho         string // com {param}
 	Args            map[string]Destino
 	BodyObrigatorio bool // requestBody.required: sem campos, o conector manda {}
+	// Publica: x-atendente-publico, disponível no canal web (specs/07, C17).
+	Publica bool
 }
 
 var nomeRe = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]{0,63}$`)
@@ -157,6 +159,7 @@ func Converter(spec []byte, ag agentes.Agente) ([]Ferramenta, error) {
 			continue
 		}
 		f, err := d.ferramenta(o)
+		f.Publica, _ = o.no["x-atendente-publico"].(bool)
 		if err != nil {
 			return nil, err
 		}

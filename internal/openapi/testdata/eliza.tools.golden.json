@@ -8,7 +8,8 @@
     "Metodo": "GET",
     "Caminho": "/api/v1/autoatendimento/agendamentos",
     "Args": {},
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": false
   },
   {
     "Decl": {
@@ -49,7 +50,8 @@
       "profissionalId": "body",
       "servicoId": "body"
     },
-    "BodyObrigatorio": true
+    "BodyObrigatorio": true,
+    "Publica": false
   },
   {
     "Decl": {
@@ -78,7 +80,8 @@
       "id": "path",
       "motivo": "body"
     },
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": false
   },
   {
     "Decl": {
@@ -102,7 +105,8 @@
     "Args": {
       "id": "path"
     },
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": false
   },
   {
     "Decl": {
@@ -137,7 +141,8 @@
       "inicio": "body",
       "profissionalId": "body"
     },
-    "BodyObrigatorio": true
+    "BodyObrigatorio": true,
+    "Publica": false
   },
   {
     "Decl": {
@@ -148,7 +153,8 @@
     "Metodo": "GET",
     "Caminho": "/api/v1/autoatendimento/cadastro",
     "Args": {},
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": false
   },
   {
     "Decl": {
@@ -184,7 +190,8 @@
       "email": "body",
       "nome": "body"
     },
-    "BodyObrigatorio": true
+    "BodyObrigatorio": true,
+    "Publica": false
   },
   {
     "Decl": {
@@ -224,7 +231,8 @@
       "email": "body",
       "nome": "body"
     },
-    "BodyObrigatorio": true
+    "BodyObrigatorio": true,
+    "Publica": false
   },
   {
     "Decl": {
@@ -248,7 +256,8 @@
     "Args": {
       "nome": "query"
     },
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": false
   },
   {
     "Decl": {
@@ -283,7 +292,8 @@
       "profissionalId": "query",
       "servicoId": "query"
     },
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": true
   },
   {
     "Decl": {
@@ -294,7 +304,8 @@
     "Metodo": "GET",
     "Caminho": "/api/v1/autoatendimento/profissionais",
     "Args": {},
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": true
   },
   {
     "Decl": {
@@ -305,6 +316,7 @@
     "Metodo": "GET",
     "Caminho": "/api/v1/autoatendimento/servicos",
     "Args": {},
-    "BodyObrigatorio": false
+    "BodyObrigatorio": false,
+    "Publica": true
   }
 ]

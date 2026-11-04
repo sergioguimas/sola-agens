@@ -9,6 +9,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Adicionado
 
+- Canal web: entrada `POST /a/{agente}/v1/web` para o chat da página pública do Eliza. O agente aconselha, consulta catálogo e horários e devolve ações que preenchem o formulário; nunca grava nada. Documento e telefone digitados são mascarados antes de ir ao modelo e à base, o texto das conversas some em 7 dias e há teto diário de turnos por organização. Vem desligado (bloco `web` no registro do agente). Bateria: `go run ./avaliacao -web`.
 - Chat de treino do atendente, primeira fase: a dona do estabelecimento conversa com o agens, que faz o papel de cliente em ensaios e guarda como ela responde. Vem desligado (bloco `treino` no registro do agente, com `ELIZA_TREINO_SECRET`) e ainda não muda o atendimento dos clientes. Rotas assinadas em `/a/{agente}/v1/treino/sessoes`.
 - Aprendizado do chat de treino: ao encerrar, o agens extrai o jeito de escrever (tratamento, saudações, emojis, pontuação, tom, exemplos) e grava uma versão do perfil de estilo. Padrão só entra depois de aparecer em duas sessões ou de ser declarado, e afirmação de fato vira nota para revisar, nunca estilo. Sessão parada por 30 minutos é encerrada sozinha. O perfil ainda não chega ao atendimento.
 - API do painel de treino: ler o perfil e como ele entraria no prompt, listar versões, observações e notas, voltar a uma versão, rejeitar e restaurar padrões, decidir notas e zerar o perfil. A assinatura dessas rotas cobre método e caminho, então vale só para a rota assinada.

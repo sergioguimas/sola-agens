@@ -1,6 +1,6 @@
 # Rodada 4 — canal web na página pública do Eliza (`/marcar/[slug]`)
 
-> **Status:** rodada de 26/10/2026 com o Sérgio. **W1–W10 fechadas**, todas pela recomendação
+> **Construída em 03/11/2026** (specs/07, depois da F2c). **Status:** rodada de 26/10/2026 com o Sérgio. **W1–W10 fechadas**, todas pela recomendação
 > (W1, W3, W5 e W10 escolhidas uma a uma; W2, W4 e W6–W9 confirmadas como propostas). Resumo no
 > CONTRATO §10 (rodada 4); lado do Eliza em `Eliza/docs/contratos/autoatendimento/08-canal-web.md`.
 > Cada linha traz a alternativa descartada e o motivo.

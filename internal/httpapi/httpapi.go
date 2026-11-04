@@ -61,6 +61,8 @@ type Server struct {
 	Apagador   Apagador
 	// Treino liga as rotas do chat de treino; nil = TREINO_DESLIGADO (specs/06 §3).
 	Treino *treino.Servico
+	// CanalWeb liga a entrada do canal web; nil = WEB_DESLIGADO (specs/07).
+	CanalWeb Web
 	// Agora existe para os testes fixarem o relógio.
 	Agora func() time.Time
 }
@@ -105,6 +107,7 @@ func (s *Server) Routes() http.Handler {
 		io.WriteString(w, "ok")
 	})
 	mux.HandleFunc("POST /a/{agente}/v1/mensagens", s.mensagens)
+	mux.HandleFunc("POST /a/{agente}/v1/web", s.web)
 	s.rotasTreino(mux)
 	if s.AdminToken != "" && s.Apagador != nil {
 		mux.HandleFunc("DELETE /admin/agentes/{a}/tenants/{t}/contatos/{c}", s.apagarContato)

@@ -104,17 +104,18 @@ func run(log *slog.Logger) error {
 		Transcritor: transcritor,
 		Log:         log,
 		Config: agent.Config{
-			Temperature: cfg.Temperature, ThinkingBudget: cfg.ThinkingBudget, PausaHumanaH: cfg.PausaHumanaH,
+			Temperature: cfg.Temperature, ThinkingBudget: cfg.ThinkingBudget, PausaHumanaH: cfg.PausaHumanaH, Loc: cfg.Loc,
 		},
 	}
 	svc := atendimento.Novo(atendimento.Opcoes{
-		Conjunto: conj, Fabrica: fab, Runner: motor, Trava: &memoria.Trava{},
+		Conjunto: conj, Fabrica: fab, Runner: motor, Motor: motor, Trava: &memoria.Trava{},
 		MaxConversas: cfg.MaxConversas, Log: log,
 	})
 
 	api := httpapi.New(conj.Registro, svc, log)
 	svc.AoTrocar = api.Trocar
 	api.Eventos = st
+	api.CanalWeb = svc
 	api.AdminToken, api.Apagador = cfg.AdminToken, st
 	treinos := &treino.Servico{
 		Store: st, LLM: provedor, Trava: &memoria.Trava{}, Log: log,

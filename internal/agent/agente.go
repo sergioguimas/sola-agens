@@ -58,6 +58,8 @@ type Config struct {
 	Temperature    float64
 	ThinkingBudget int
 	PausaHumanaH   int // fallback de AGENS_PAUSA_HUMANA_HORAS
+	// Loc é AGENS_TZ: define o "dia" do teto do canal web. nil = o fuso do relógio.
+	Loc *time.Location
 }
 
 // Motor executa turnos. Só depende de interfaces (specs/05 §3).

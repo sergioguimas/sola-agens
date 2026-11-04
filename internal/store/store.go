@@ -124,6 +124,10 @@ type Store interface {
 
 	// Manutenção (specs/01 §9).
 	ExpurgarTexto(ctx context.Context, antesDe time.Time) (int64, error)
+	// ExpurgarTextoWeb zera o texto das conversas do canal web (W5).
+	ExpurgarTextoWeb(ctx context.Context, antesDe time.Time) (int64, error)
+	// ContarTurnosWeb conta os turnos do canal web da org desde o instante (W6).
+	ContarTurnosWeb(ctx context.Context, agente, tenant string, desde time.Time) (int, error)
 	ApagarEventosEcos(ctx context.Context, antesDe time.Time) (int64, error)
 	ApagarContato(ctx context.Context, id ConversaID) error
 	JobFeito(ctx context.Context, nome, dataRef string) (bool, error)
