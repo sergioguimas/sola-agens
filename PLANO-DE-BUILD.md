@@ -202,3 +202,21 @@ contra o Eliza de dev e imprime o resultado de cada cenário. go test -race ./..
    [Custos](docs/OPERACAO.md#custos)). Anotar em docs/OPERACAO.md.
 4. Só depois: ligar para uma org real, acompanhando o log de turnos na primeira semana.
 5. Backlog (CONTRATO §9) e o módulo de treinamento (§11, rediscutir) vão para `ROADMAP.md`.
+
+## 7. Fases da F2c (chat de treino)
+
+Contrato: [specs/06-treinamento.md](specs/06-treinamento.md). O serviço já está em produção: cada fase
+sai em branch, e nada chega a cliente real antes da fase 4.
+
+| # | Entrega | Estado | Prova |
+|---|---|---|---|
+| 1 | **Chat de treino:** migration 0003 inteira, bloco `treino` no registro, rotas assinadas `POST /sessoes`, `/mensagens`, `/encerrar`, ensaios e preferências | **Feita 03/11** | testes + `go run ./avaliacao -treino` (10 de 10 sessões reais) |
+| 2 | **Aprendizado:** saída estruturada no `llm`, métricas, extração, fusão, versões, `encerrar` de verdade, job de inatividade (T-F3, T-F4). Só grava o perfil; não muda o atendimento | **Feita 03/11** | testes, mutação das guardas e `go run ./avaliacao -treino`: 3 de 4 baterias reais passaram 25/25; a outra reprovou só em evidência de texto livre (S31) |
+| 3 | **Painel:** `GET /perfil`, versões, observações, notas, voltar versão, zerar (T-F6 a T-F9); assinatura cobre método e caminho (S32) | **Feita 03/11** | testes, vetores calculados fora do Go e mutação das guardas |
+| 4 | **Efeito no atendimento:** seção `ESTILO DO ESTABELECIMENTO` no prompt, prévia (T-F5). **Depende do ticket de visitante da F2a** (S15, S19) | bloqueada pela F2a | golden do prompt, avaliação com perfil |
+
+**Em paralelo, no repo do Eliza:** contrato 10 (página `/configuracoes/atendente`), que pode ser feito
+contra um agens falso e já tem API real para a aba Treinar.
+
+**Contrato 10 no Eliza:** feito em 03/11, menos a Prévia (branch `feat/treino-atendente` de lá). Exercitado
+na tela contra este motor com o Gemini real.

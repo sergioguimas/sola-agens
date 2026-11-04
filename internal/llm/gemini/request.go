@@ -65,9 +65,11 @@ type functionCallingConfig struct {
 }
 
 type generationConfig struct {
-	Temperature     float64         `json:"temperature"`
-	MaxOutputTokens int             `json:"maxOutputTokens"`
-	ThinkingConfig  *thinkingConfig `json:"thinkingConfig,omitempty"`
+	Temperature      float64         `json:"temperature"`
+	MaxOutputTokens  int             `json:"maxOutputTokens"`
+	ThinkingConfig   *thinkingConfig `json:"thinkingConfig,omitempty"`
+	ResponseMimeType string          `json:"responseMimeType,omitempty"`
+	ResponseSchema   map[string]any  `json:"responseSchema,omitempty"`
 }
 
 type thinkingConfig struct {
@@ -93,7 +95,10 @@ func buildRequest(req llm.GenerateRequest) generateRequest {
 		gr.Contents = append(gr.Contents, toContent(t))
 	}
 
-	if len(req.Tools) > 0 {
+	if req.ResponseSchema != nil {
+		gr.GenerationConfig.ResponseMimeType = req.ResponseMimeType
+		gr.GenerationConfig.ResponseSchema = req.ResponseSchema
+	} else if len(req.Tools) > 0 {
 		decls := make([]functionDeclaration, 0, len(req.Tools))
 		for _, td := range req.Tools {
 			decls = append(decls, functionDeclaration{

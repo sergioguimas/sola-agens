@@ -152,8 +152,8 @@ func TestNomeSeguro(t *testing.T) {
 		{"D'Ávila-Souza", "D'Ávila-Souza"},
 	}
 	for _, c := range casos {
-		if got := nomeSeguro(c.entrada); got != c.esperado {
-			t.Errorf("nomeSeguro(%q) = %q, quer %q", c.entrada, got, c.esperado)
+		if got := NomeSeguro(c.entrada); got != c.esperado {
+			t.Errorf("NomeSeguro(%q) = %q, quer %q", c.entrada, got, c.esperado)
 		}
 	}
 }

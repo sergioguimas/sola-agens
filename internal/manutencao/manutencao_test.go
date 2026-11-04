@@ -156,3 +156,16 @@ func TestStartRodaUmaVezAoSubirEParaComContexto(t *testing.T) {
 		t.Fatal("Start não parou com o contexto")
 	}
 }
+
+// O gancho roda a cada tick, sem depender da hora do job diário.
+func TestAoTickRodaEmTodoTick(t *testing.T) {
+	r := New(nil, nil, nil, 3, 90, nil)
+	r.jobs = nil
+	n := 0
+	r.AoTick = func(context.Context) { n++ }
+	r.Tick(context.Background())
+	r.Tick(context.Background())
+	if n != 2 {
+		t.Fatalf("AoTick rodou %d vezes", n)
+	}
+}

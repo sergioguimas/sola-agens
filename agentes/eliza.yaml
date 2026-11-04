@@ -34,3 +34,16 @@ limites:
   audio_max_s: 120
   turno_timeout_s: 90
 # modelo: gemini-3.6-flash   # opcional; padrão AGENS_MODEL
+# Chat de treino (specs/06). Só descomente depois de definir ELIZA_TREINO_SECRET
+# (32 bytes ou mais): a env ausente derruba o boot. Ver docs/OPERACAO.md.
+# treino:
+#   segredo_env: ELIZA_TREINO_SECRET
+#   header_assinatura: X-Eliza-Assinatura
+#   header_timestamp: X-Eliza-Timestamp
+#   papeis: [owner, admin]
+#   limites:
+#     sessoes_dia_tenant: 10
+#     mensagens_sessao: 80
+#     texto_max: 1000
+#     inatividade_min: 30
+#     turno_timeout_s: 30

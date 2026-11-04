@@ -15,6 +15,7 @@ import (
 	"sola-agens/internal/agentes"
 	"sola-agens/internal/entrada"
 	"sola-agens/internal/store"
+	"sola-agens/internal/treino"
 )
 
 // MaxCorpo é o limite do corpo aceito (F1 passo 2).
@@ -58,6 +59,8 @@ type Server struct {
 	// token vazio (ou Apagador nil) = rota não registrada.
 	AdminToken string
 	Apagador   Apagador
+	// Treino liga as rotas do chat de treino; nil = TREINO_DESLIGADO (specs/06 §3).
+	Treino *treino.Servico
 	// Agora existe para os testes fixarem o relógio.
 	Agora func() time.Time
 }
@@ -79,6 +82,16 @@ func (s *Server) Trocar(ags []agentes.Agente) {
 	s.agentes.Store(&m)
 }
 
+// Agentes devolve o registro em vigor (muda com o SIGHUP).
+func (s *Server) Agentes() []agentes.Agente {
+	m := *s.agentes.Load()
+	out := make([]agentes.Agente, 0, len(m))
+	for _, a := range m {
+		out = append(out, a)
+	}
+	return out
+}
+
 func (s *Server) agente(id string) (agentes.Agente, bool) {
 	a, ok := (*s.agentes.Load())[id]
 	return a, ok
@@ -92,6 +105,7 @@ func (s *Server) Routes() http.Handler {
 		io.WriteString(w, "ok")
 	})
 	mux.HandleFunc("POST /a/{agente}/v1/mensagens", s.mensagens)
+	s.rotasTreino(mux)
 	if s.AdminToken != "" && s.Apagador != nil {
 		mux.HandleFunc("DELETE /admin/agentes/{a}/tenants/{t}/contatos/{c}", s.apagarContato)
 	}

@@ -28,6 +28,9 @@ type Runner struct {
 	Hora         int // AGENS_MANUTENCAO_HORA, no fuso Loc
 	RetencaoDias int // AGENS_RETENCAO_DIAS
 	Log          *slog.Logger
+	// AoTick roda a cada tick, fora do controle diário: serve ao que precisa de
+	// resposta em minutos, como fechar sessões de treino inativas (specs/06 T-F4).
+	AoTick func(ctx context.Context)
 
 	jobs []job
 }
@@ -73,6 +76,9 @@ func (r *Runner) retencao(ctx context.Context, dia time.Time) error {
 // Tick faz uma passada: para cada dia de [hoje-2 .. hoje] cuja hora já chegou
 // e que ainda não foi marcado, roda o job. Erro só loga; tenta no próximo tick.
 func (r *Runner) Tick(ctx context.Context) {
+	if r.AoTick != nil {
+		r.AoTick(ctx)
+	}
 	agora := r.Clock().In(r.Loc)
 	for _, j := range r.jobs {
 		for offset := janelaCatchUp - 1; offset >= 0; offset-- {

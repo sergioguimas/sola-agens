@@ -104,6 +104,7 @@ go run ./avaliacao -cenario 7               # um só
 go run ./avaliacao -vezes 5                 # estabilidade: cada cenário 5 vezes
 go run ./avaliacao -modelo gemini-3.8-flash # compara outro modelo
 go run ./avaliacao -v                       # mostra as respostas ao cliente
+go run ./avaliacao -treino                  # sessão roteirizada do chat de treino
 ```
 
 Imprime, por cenário, passou/falhou e o motivo, ferramentas chamadas, tokens, custo e latência; no fim,

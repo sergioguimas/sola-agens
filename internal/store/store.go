@@ -27,6 +27,9 @@ const (
 	ModoFixa     = "fixa"
 	ModoPausado  = "pausado"
 	ModoErro     = "erro"
+	// ModoTreino e ModoPrevia: turnos do modo de treinamento (specs/06 §10).
+	ModoTreino = "treino"
+	ModoPrevia = "previa"
 )
 
 // Erros sentinela.

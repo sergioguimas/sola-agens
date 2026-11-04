@@ -176,6 +176,30 @@ página de preços do Gemini antes de confiar no total. O preço promocional do 
 31/12/2026 (A9) entra por `AGENS_PRECO_GEMINI_3_6_FLASH`; sem a linha, o custo registrado é o cheio (o
 dobro). Com a linha, **apague-a em janeiro de 2027**.
 
+## Chat de treino
+
+Vem desligado: sem o bloco `treino` em `agentes/eliza.yaml`, as rotas respondem `404 TREINO_DESLIGADO`.
+Para ligar, **nesta ordem** (o bloco com a env ausente ou com menos de 32 bytes derruba o boot):
+
+1. Gere o segredo (`openssl rand -hex 32`) e ponha em `ELIZA_TREINO_SECRET` no `.env` do agens e em
+   `ATENDENTE_TREINO_SECRET` no do Eliza.
+2. Descomente o bloco `treino` em `agentes/eliza.yaml`.
+3. Recarregue (SIGHUP) ou reinicie.
+
+Ao encerrar, o motor extrai o estilo e grava uma versão do perfil, mas **nada muda no atendimento dos
+clientes**: o perfil só entra no prompt depois da prévia (PLANO-DE-BUILD §7). Sessão parada por 30 minutos
+é encerrada pelo job da manutenção, que também repete uma vez a extração que falhou. Se falhar de novo,
+a sessão fica em `erro_extracao` e o log traz `treino: extração desistiu`.
+
+Rode `go run ./avaliacao -treino` a cada mudança nos prompts do treino. Ela chama o Gemini de verdade: uma
+sessão de 8 falas custa cerca de US$ 0,02, registrada em `turnos` com `modo='treino'`. A bateria roda duas.
+A checagem "texto livre soma evidência" pode reprovar de vez em quando (specs/06 S31): é variação do modelo
+e só atrasa o aprendizado. As demais reprovarem é sinal de problema.
+
+**A chave do Gemini é pré-paga.** Sem crédito a API responde `402` e tudo que usa o modelo para, inclusive
+o atendimento. Confira o saldo em AI Studio antes de rodar baterias repetidas. Depois de recarregar, a API
+leva alguns minutos para estabilizar e alterna `402` e `200` nesse intervalo (visto em 03/11).
+
 ## Retenção e apagamento
 
 Um job diário (hora em `AGENS_MANUTENCAO_HORA`, fuso `AGENS_TZ`; recupera até 3 dias perdidos) apaga o

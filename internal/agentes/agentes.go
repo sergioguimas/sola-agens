@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -75,6 +76,33 @@ type Limites struct {
 	TurnoTimeoutS    int `yaml:"turno_timeout_s"`
 }
 
+// SegredoTreinoMin é o tamanho mínimo do segredo do treino (specs/06 §3).
+const SegredoTreinoMin = 32
+
+// TreinoLimites do modo de treino. Zero no yaml = padrão.
+type TreinoLimites struct {
+	SessoesDiaTenant int `yaml:"sessoes_dia_tenant"`
+	MensagensSessao  int `yaml:"mensagens_sessao"`
+	TextoMax         int `yaml:"texto_max"`
+	InatividadeMin   int `yaml:"inatividade_min"`
+	TurnoTimeoutS    int `yaml:"turno_timeout_s"`
+}
+
+// Treino liga o modo de treino do agente (specs/06 §3). Sem o bloco, o modo fica
+// desligado e as rotas respondem TREINO_DESLIGADO.
+type Treino struct {
+	SegredoEnv       string        `yaml:"segredo_env"`
+	HeaderAssinatura string        `yaml:"header_assinatura"`
+	HeaderTimestamp  string        `yaml:"header_timestamp"`
+	Papeis           []string      `yaml:"papeis"`
+	Limites          TreinoLimites `yaml:"limites"`
+}
+
+// PapelPermitido diz se o papel do operador pode treinar (T2).
+func (t *Treino) PapelPermitido(papel string) bool {
+	return slices.Contains(t.Papeis, papel)
+}
+
 // Agente é um sistema registrado no motor.
 type Agente struct {
 	ID             string            `yaml:"id"`
@@ -85,15 +113,20 @@ type Agente struct {
 	Midia          map[string]string `yaml:"midia"`
 	Limites        Limites           `yaml:"limites"`
 	Modelo         string            `yaml:"modelo"` // vazio = AGENS_MODEL
+	Treino         *Treino           `yaml:"treino"` // nil = modo de treino desligado
 
 	// Valores resolvidos das envs; nunca logar.
-	segredo string
-	baseURL string
-	token   string
+	segredo       string
+	segredoTreino string
+	baseURL       string
+	token         string
 }
 
 // Segredo de assinatura da entrada.
 func (a *Agente) Segredo() string { return a.segredo }
+
+// SegredoTreino assina as chamadas do modo de treino (S9: não é o da entrada).
+func (a *Agente) SegredoTreino() string { return a.segredoTreino }
 
 // BaseURL do sistema (sem barra final).
 func (a *Agente) BaseURL() string { return a.baseURL }
@@ -261,6 +294,59 @@ func (a *Agente) validar(lookup func(string) (string, bool)) error {
 		}
 	}
 
+	if a.Treino != nil {
+		if a.segredoTreino, err = a.Treino.validar(env); err != nil {
+			return err
+		}
+	}
+
 	a.Limites.aplicarPadroes()
 	return a.Limites.validar()
+}
+
+func (l *TreinoLimites) aplicarPadroes() {
+	def := func(p *int, v int) {
+		if *p == 0 {
+			*p = v
+		}
+	}
+	def(&l.SessoesDiaTenant, 10)
+	def(&l.MensagensSessao, 80)
+	def(&l.TextoMax, 1000)
+	def(&l.InatividadeMin, 30)
+	def(&l.TurnoTimeoutS, 30)
+}
+
+// validar confere o bloco e devolve o segredo resolvido.
+func (t *Treino) validar(env func(nome, campo string) (string, error)) (string, error) {
+	for _, o := range []struct{ nome, v string }{
+		{"treino.segredo_env", t.SegredoEnv},
+		{"treino.header_assinatura", t.HeaderAssinatura},
+		{"treino.header_timestamp", t.HeaderTimestamp},
+	} {
+		if strings.TrimSpace(o.v) == "" {
+			return "", fmt.Errorf("%s é obrigatório", o.nome)
+		}
+	}
+	if len(t.Papeis) == 0 {
+		return "", errors.New("treino.papeis não pode ser vazio")
+	}
+	segredo, err := env(t.SegredoEnv, "treino.segredo_env")
+	if err != nil {
+		return "", err
+	}
+	if len(segredo) < SegredoTreinoMin {
+		return "", fmt.Errorf("treino.segredo_env: env %s precisa de ao menos %d bytes", t.SegredoEnv, SegredoTreinoMin)
+	}
+	t.Limites.aplicarPadroes()
+	for nome, v := range map[string]int{
+		"sessoes_dia_tenant": t.Limites.SessoesDiaTenant, "mensagens_sessao": t.Limites.MensagensSessao,
+		"texto_max": t.Limites.TextoMax, "inatividade_min": t.Limites.InatividadeMin,
+		"turno_timeout_s": t.Limites.TurnoTimeoutS,
+	} {
+		if v < 0 {
+			return "", fmt.Errorf("treino.limites.%s negativo", nome)
+		}
+	}
+	return segredo, nil
 }

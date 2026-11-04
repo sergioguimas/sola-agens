@@ -29,6 +29,7 @@ import (
 	"sola-agens/internal/store/sqlite"
 	"sola-agens/internal/transcricao"
 	"sola-agens/internal/trava/memoria"
+	"sola-agens/internal/treino"
 )
 
 func main() {
@@ -115,6 +116,13 @@ func run(log *slog.Logger) error {
 	svc.AoTrocar = api.Trocar
 	api.Eventos = st
 	api.AdminToken, api.Apagador = cfg.AdminToken, st
+	treinos := &treino.Servico{
+		Store: st, LLM: provedor, Trava: &memoria.Trava{}, Log: log,
+		Config: treino.Config{
+			ModeloPadrao: cfg.Model, Temperature: cfg.Temperature, ThinkingBudget: cfg.ThinkingBudget, Loc: cfg.Loc,
+		},
+	}
+	api.Treino = treinos
 	srv := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           api.Routes(),
@@ -131,7 +139,9 @@ func run(log *slog.Logger) error {
 	manut.Add(1)
 	go func() {
 		defer manut.Done()
-		manutencao.New(st, time.Now, cfg.Loc, cfg.ManutencaoHora, cfg.RetencaoDias, log).Start(ctx)
+		runner := manutencao.New(st, time.Now, cfg.Loc, cfg.ManutencaoHora, cfg.RetencaoDias, log)
+		runner.AoTick = func(ctx context.Context) { treinos.Varrer(ctx, api.Agentes()) }
+		runner.Start(ctx)
 	}()
 
 	// SIGHUP (F6): recarrega agentes/*.yaml e as OpenAPIs; inválido mantém o anterior.

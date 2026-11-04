@@ -1,6 +1,8 @@
 # 06 — Modo de treinamento (perfil de estilo por tenant)
 
-> **TO-BE.** Nada disto existe no código; é o alvo da fase **F2c**, que vem **depois da F2a** (T12).
+> **TO-BE, em construção.** Alvo da fase **F2c**. As **fases 1 (chat), 2 (aprendizado) e 3 (painel) existem
+> no código** desde 03/11/2026; prévia e efeito no atendimento seguem TO-BE (PLANO-DE-BUILD §7). A ordem da T12 foi invertida a pedido do Sérgio: a
+> F2c começou **antes da F2a** (S18).
 > Decisões de origem: [docs/RODADA-5-TREINAMENTO.md](../docs/RODADA-5-TREINAMENTO.md) (T1–T12) e
 > CONTRATO §10 (rodada 5). Decisões tomadas ao escrever esta spec: §13 (S9–S17), para revisão.
 > O lado do sistema (Eliza) está no contrato `Eliza/docs/contratos/autoatendimento/10-treino-do-atendente.md`
@@ -63,15 +65,24 @@ bytes; `papeis` não vazio; limites positivos. Falha derruba o boot.
 Toda chamada da §5 vem **assinada pelo sistema**, no mesmo esquema da entrada encaminhada (04 §1), com
 o segredo de `treino.segredo_env`:
 
-- `X-Eliza-Assinatura = hex(HMAC-SHA256(segredo, X-Eliza-Timestamp + "." + corpo bruto))`;
-  `X-Eliza-Timestamp` em epoch segundos, tolerância 300 s. Nos `GET` o corpo bruto é a string vazia.
-- O corpo (ou, nos `GET`, os headers `X-Agens-Tenant`, `X-Agens-Operador-Id`, `X-Agens-Operador-Papel`,
-  incluídos na assinatura como `timestamp + "." + tenant + "." + operadorId + "." + papel`) traz:
+- `X-Eliza-Assinatura = hex(HMAC-SHA256(segredo, timestamp + "." + MÉTODO + "." + caminho + "." + conteúdo))`;
+  `X-Eliza-Timestamp` em epoch segundos, tolerância 300 s. **Método e caminho entram na assinatura (S32).**
+- `caminho` é o que vem depois de `/a/{agente}/v1/treino`, com a query como foi enviada:
+  `/sessoes/abc/mensagens`, `/notas?estado=pendente`.
+- `conteúdo` é o corpo bruto. Sem corpo (`GET`, `DELETE /perfil`), é `tenant + "." + operadorId + "." + papel`,
+  e a identidade vai nos headers `X-Agens-Tenant`, `X-Agens-Operador-Id` e `X-Agens-Operador-Papel`.
+- O corpo traz:
 
 ```json
 { "operador": { "tenant": "<org id>", "id": "<user id>", "papel": "owner", "nome": "Ana" } }
 ```
 
+- **Vetores fixos** (contrato 10 §7, o Eliza usa os mesmos nos testes): segredo
+  `segredo-de-treino-com-mais-de-32-bytes`, timestamp `1800000000`, operador `org-1`, `u1`, `owner`:
+  - `POST /sessoes` com corpo `{"operador":{"tenant":"org-1","id":"u1","papel":"owner","nome":"Ana"}}` →
+    `4a1b3a0095223988b879a08c0150ed2a69e31e900b18192cd3d6098a5719713c`
+  - `GET /perfil` → `c974379c14cc79d83c920aadda3951d7c72635053b25f0abd37636700d099902`
+  - `DELETE /perfil` → `41706b734ba1250b05e4d82e8027b92f5716ee6d929179fb4fa12fba69203470`
 - `papel` fora de `treino.papeis` → `403 PAPEL_NAO_PERMITIDO`. O agens confia no `tenant` e no `id`
   assinados: **quem garante que o usuário é daquela org é o sistema**.
 - `nome` passa por `nomeSeguro` (02 §7) e só serve para o agens chamar o operador pelo nome.
@@ -89,7 +100,7 @@ Prefixo `/a/{agente}/v1/treino`. Tudo síncrono, JSON, assinado (§4). Erros no 
 | `POST /sessoes` | abre sessão (ou devolve a aberta do mesmo operador) e a primeira fala do agens | T-F1 |
 | `POST /sessoes/{id}/mensagens` | uma mensagem do operador → resposta do agens | T-F2 |
 | `POST /sessoes/{id}/encerrar` | encerra, extrai e devolve o que mudou | T-F3 |
-| `GET /sessoes?limite=20` | sessões do tenant, mais recentes primeiro (sem texto) | — |
+| `GET /sessoes?limite=20` | sessões do tenant, mais recentes primeiro (sem texto). **Não construída:** o contrato 10 não a usa | — |
 | `GET /perfil` | versão ativa (perfil + texto renderizado da seção do prompt) | — |
 | `GET /perfil/versoes` | versões (número, origem, data, resumo do diff) | — |
 | `POST /perfil/versoes/{n}/ativar` | volta para a versão `n` | T-F6 |
@@ -139,6 +150,12 @@ Prefixo `/a/{agente}/v1/treino`. Tudo síncrono, JSON, assinado (§4). Erros no 
 { "notas": [ { "id": "…", "texto": "…", "citacao": "…", "estado": "pendente", "criadaEm": "…" } ] }
 // POST /perfil/versoes/{n}/ativar
 { "versao": 8, "rejeitadas": [ { "id": "…", "campo": "emojis.preferidos", "valor": "💅" } ] }
+// POST /observacoes/{id}/rejeitar · /restaurar
+{ "versaoNova": 9, "mudancas": [ … ] }          // versaoNova null se o perfil não mudou
+// POST /notas/{id}/marcar — { "operador": {…}, "estado": "aplicada" | "descartada" }
+{ "id": "…", "estado": "aplicada" }             // nota já resolvida devolve a decisão que vale
+// DELETE /perfil
+{ "versao": 10 }
 ```
 
 Instantes em ISO 8601 UTC. Os nomes de campo são os do Zod do Eliza (`contracts/autoatendimento/treino.ts`,
@@ -343,6 +360,7 @@ CREATE TABLE sessoes_treino (
   estado        TEXT NOT NULL CHECK (estado IN ('aberta','encerrada','extraida','erro_extracao')),
   roteiro_json  TEXT NOT NULL,        -- {"feitos":{"preco":2,…}}
   versao_gerada INTEGER,              -- NULL = não gerou versão
+  tentativas_extracao INTEGER NOT NULL DEFAULT 0,   -- S29
   aberta_em     INTEGER NOT NULL,
   ultima_msg_em INTEGER NOT NULL,
   encerrada_em  INTEGER
@@ -519,6 +537,33 @@ memória sem pausar.
 | S15 | Ensaio e prévia usam o **ticket de visitante** da F2a para ler o catálogo: sem ele o ensaio é genérico e a prévia não roda | §5.1, §11 |
 | S16 | Exemplos entram com 1 sessão (são resposta real, não inferência); os demais itens exigem 2 sessões ou declaração (T5) | §7.3 |
 | S17 | Observação de estilo cuja citação não aparece nas mensagens do operador é descartada | §7.2 |
+
+### 13.1 Decisões da fase 1 (03/11/2026, durante o build)
+
+| # | Decisão | Motivo |
+|---|---|---|
+| S18 | **F2c antes da F2a** (revê T12, pedido do Sérgio). O motor cria sessão, conversa e guarda o material sem ticket de visitante: ensaios genéricos, sem catálogo. **Abrir a sessão é uma transação só** e quem já tem sessão aberta não conta no limite do dia | O texto da T12 já previa a inversão ("só muda quem constrói a base"). Na ordem da §11, a operadora com sessão aberta levaria `429` ao recarregar a página depois do 10º treino do dia |
+| S19 | **O perfil não chega ao atendimento enquanto não houver prévia.** A fase 1 não toca `agent.Prompt` | T10 pede prévia antes de valer e T5 ativa versão sozinha. Sem a F2a não há prévia (S15): ligar os dois agora faria mudança automática chegar a cliente real sem conferência |
+| S20 | **A mensagem do operador é gravada junto com a resposta**, numa transação, depois do LLM (a §11 T-F2 gravava antes) | Gravando antes, uma falha do LLM deixaria a mensagem na sessão, e o reenvio a duplicaria e perderia o vínculo com o ensaio |
+| S21 | Abertura sem fala (LLM falhou) é refeita na próxima chamada. O histórico sempre começa com um turno de usuário fixo, não gravado | Sem isso a sessão ficaria muda para sempre. A §11 T-F1 pedia "histórico vazio", que o Gemini recusa |
+| S22 | **As rotas de treino estendem o prazo de escrita da requisição** (`turno_timeout_s` + 5 s) | O `WriteTimeout` do servidor é 15 s e o turno pode levar 30 s: a conexão cairia antes da resposta. Provado com servidor HTTP real |
+| S23 | A fala do ensaio sempre aparece: se o texto do modelo não tem aspas, o motor a acrescenta. **Repetição não é ensaio novo:** mesmo cenário em seguida, ou a fala vista repetida entre aspas, mantém o vínculo com o cenário e não conta em `ensaiosFeitos` | Sessões reais: quando o operador sai do roteiro, o modelo repete o ensaio, às vezes com outras palavras ou sem a ferramenta. Sem isso a resposta seguinte perdia o par e a contagem inflava |
+| S24 | `registrar_preferencia` recusa citação que não seja trecho literal do operador e o motor ignora repetida (mesmo campo e valor) | Declarada entra no perfil com uma sessão (§7.3): não pode nascer de frase inventada. O histórico só tem texto, então o modelo não lembra do que já registrou |
+
+### 13.2 Decisões da fase 2 (03/11/2026, durante o build)
+
+| # | Decisão | Motivo |
+|---|---|---|
+| S25 | **Métricas depois da extração**, que aponta `paresForaDoRoteiro`: respostas que não atendem a um cliente (declaração, pergunta ao treinador, ordem). Elas ficam fora das métricas e dos exemplos | A mensagem seguinte a um ensaio é sempre gravada como `resposta_ensaio`. Sem isso, com S16, "ignore suas regras…" entraria como exemplo com uma sessão só |
+| S26 | **`AplicarExtracao` numa transação** substitui `FundirObservacoes`, `CriarNotas`, `GravarVersao` e `MarcarExtraida` da §10.1. A derivação do perfil roda dentro dela, por callback | Em chamadas separadas, cair no meio faria o retry contar a evidência duas vezes, e uma sessão valeria como as duas do T5 |
+| S27 | Valor de campo fechado passa por `canonizar` ("Você" → `voce`); o que não encaixa é descartado. Declaração com vários emojis vira uma observação por emoji | `registrar_preferencia` recebe texto livre, e o perfil só aceita o enum do Zod do Eliza. Visto nas sessões reais |
+| S28 | **Item de estilo com número, `%` ou `R$` vira nota**, mesmo que o modelo o classifique como estilo. Exemplos ficam de fora: a resposta real tem horário e preço, e o prompt já manda não copiar | T5: fato nunca entra sozinho. Isso não depende de o modelo acertar o `tipo` |
+| S29 | `tentativas_extracao` entra na 0003, que ainda não foi aplicada em nenhuma base. O job T-F4 roda pelo gancho `AoTick` da manutenção, a cada minuto, fora do controle diário | A §11 pede uma tentativa a mais e parar; sem contador o job tentaria para sempre. O runner só tinha job diário |
+| S30 | Sessão sem resposta nem preferência não chama o LLM. Encerrar de novo devolve só `versaoNova`, sem o detalhe. `instrucoesIgnoradas` vai ao log só como contagem (a §14 falava em "no log") | O log do motor nunca leva texto de conversa, e essa lista descreve o que a pessoa escreveu |
+| S31 | **A extração recebe as candidatas e as notas pendentes** (a §7.2 só previa o perfil ativo), com a ordem de repetir a redação das candidatas e de não anotar de novo o mesmo fato. **Limite conhecido:** continua dependendo do modelo. Em 4 baterias reais, 3 somaram evidência de texto livre; quando não soma, o padrão só demora mais a entrar, nunca entra errado | A fusão compara texto. Na 1ª bateria real, `saudacoes` e `tom` ficaram vazios depois de duas sessões iguais, porque o modelo redigia diferente a cada uma, e o mesmo preço virou duas notas. Comparar por significado exigiria embeddings ou outra chamada ao LLM |
+| S32 | **Fase 3: a assinatura cobre método e caminho, com a query.** Vale em todas as rotas do treino, e os vetores da §4 mudaram | Sem isso, a assinatura de um `GET /perfil` servia por 5 minutos para `DELETE /perfil`, porque as duas assinavam o mesmo `tenant.operador.papel`. O agens fica na `proxy_net`, compartilhada. Replay na mesma rota, dentro dos 300 s, continua possível |
+| S34 | **Voltar versão também restaura** o que está nela e tinha sido removido (complementa S13) | Achado na tela: o perfil dizia uma coisa e a lista de removidas outra, e a próxima derivação tirava o padrão sem ninguém pedir |
+| S33 | **Fase 3: `EditarPerfil` numa transação** para rejeitar, restaurar, voltar versão e zerar. Voltar para a versão em vigor não cria versão. Nota já resolvida não muda de decisão, e marcar de novo é seguro (C34). `SecaoPrompt` já renderiza a seção da §9.1, mas nada a usa no atendimento (S19) | O painel precisa mostrar como o perfil entra no prompt. Na fase 4 falta só ligar |
 
 ## 14. Testes (o que o build precisa provar)
 
