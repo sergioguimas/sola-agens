@@ -153,6 +153,29 @@ func TestFiltraPorXAtendente(t *testing.T) {
 	}
 }
 
+func TestMarcasDePublicoEAgenda(t *testing.T) {
+	spec := specMin(`"/a":{"get":{"operationId":"horarios","x-atendente":true,"x-atendente-agenda":true}},
+	 "/b":{"get":{"operationId":"servicos","x-atendente":true,"x-atendente-publico":true}},
+	 "/c":{"get":{"operationId":"nenhuma","x-atendente":true,"x-atendente-agenda":false}}`, "")
+	tools, err := Converter(spec, agenteEliza())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][2]bool{}
+	for _, f := range tools {
+		got[f.Decl.Name] = [2]bool{f.Publica, f.Agenda}
+	}
+	want := map[string][2]bool{"horarios": {false, true}, "servicos": {true, false}, "nenhuma": {false, false}}
+	if len(got) != len(want) {
+		t.Fatalf("got = %v", got)
+	}
+	for n, w := range want {
+		if got[n] != w {
+			t.Errorf("%s: (publica, agenda) = %v, quer %v", n, got[n], w)
+		}
+	}
+}
+
 func TestErrosDeConversao(t *testing.T) {
 	cases := []struct {
 		nome   string

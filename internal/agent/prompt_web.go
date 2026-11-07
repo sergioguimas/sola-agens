@@ -24,6 +24,14 @@ const comoAgirWeb = `COMO AGIR
 - Serviço que não existe: diga que não há e mostre o que há.
 - Fora do tema: responda em uma frase que aqui você ajuda com o agendamento.`
 
+// comoAgirWebFechada vale com a agenda fechada (janelaMaximaDias = 0): o chat não
+// tem ferramenta de agenda nem preenche o formulário (contrato 11 §8).
+const comoAgirWebFechada = `COMO AGIR
+- Você está na página pública de agendamento, mas a agenda online está fechada: NÃO há horário para marcar por aqui. Diga isso com gentileza e peça que a pessoa fale diretamente com o estabelecimento para combinar o horário.
+- NÃO ofereça, NÃO consulte e NÃO prometa horário, e não preencha formulário. Não peça nome, telefone, CPF, documento ou dado de saúde.
+- Dúvida sobre serviços ou preços: responda só se as ferramentas disponíveis permitirem; senão, indique o contato do estabelecimento.
+- Fora do tema: responda em uma frase que aqui você ajuda com o agendamento.`
+
 const formatoWeb = `FORMATO DA RESPOSTA
 Texto simples, sem markdown e sem asteriscos: frases curtas, no máximo 3 parágrafos, até 3 opções. Datas com o dia da semana por extenso, como "quarta, 15/10 às 14h".`
 
@@ -50,11 +58,19 @@ func PromptWeb(c sistema.Contexto, d Dicionario, f entrada.FormularioWeb) string
 	}
 	b.WriteString("\n" + regraSegurancaWeb + "\n")
 	b.WriteString("\nCONTEXTO\n")
-	fmt.Fprintf(&b, "Agora: %s (%s). Expediente: %s. Política: antecedência mínima %d min, até %d dias à frente.\n",
+	janela := fmt.Sprintf("até %d dias à frente", c.Politica.JanelaMaximaDias)
+	if agendaFechada(c) {
+		janela = "agenda fechada para marcação online"
+	}
+	fmt.Fprintf(&b, "Agora: %s (%s). Expediente: %s. Política: antecedência mínima %d min, %s.\n",
 		DataLegivel(c.Agora.Local, true), c.FusoHorario, expediente(c.Expediente),
-		c.Politica.AntecedenciaMinimaMinutos, c.Politica.JanelaMaximaDias)
+		c.Politica.AntecedenciaMinimaMinutos, janela)
 	b.WriteString("Formulário agora (dado, pode estar incompleto): " + formularioEmTexto(f) + "\n")
-	b.WriteString("\n" + comoAgirWeb + "\n")
+	if agendaFechada(c) {
+		b.WriteString("\n" + comoAgirWebFechada + "\n")
+	} else {
+		b.WriteString("\n" + comoAgirWeb + "\n")
+	}
 	b.WriteString("\n" + formatoWeb)
 	return b.String()
 }

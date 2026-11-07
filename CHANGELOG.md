@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Não publicado]
 
+### Adicionado
+
+- Modo triagem no WhatsApp: quando o sistema informa agenda fechada (`janelaMaximaDias = 0`), o atendente não oferece, não consulta e não promete horário. Descobre o serviço e a preferência de dia e turno, avisa que a equipe confirma pessoalmente e chama a equipe uma vez por pedido, com o motivo novo `triagem`. Pedido de remarcar também vira triagem; cancelar e confirmar seguem como antes.
+- O sistema marca com `x-atendente-agenda` as operações que mostram ou gravam horário. Com a agenda fechada elas somem das ferramentas do turno (WhatsApp e web) e, se o modelo tentar chamá-las, valem como ferramenta inexistente. Com janela de 1 dia ou mais nada muda.
+
+### Modificado
+
+- Canal web com agenda fechada: o chat responde que a marcação online está fechada e orienta a falar com o estabelecimento, sem ferramentas de agenda e sem preencher o formulário.
+- O motivo `triagem` entra no enum de `chamar_humano`. Se o sistema ainda não conhecer o motivo e recusar, o atendente escala de novo com `fora_da_politica`, e a equipe é avisada do mesmo jeito.
+
 ## [1.2.0] - 2026-11-04
 
 ### Adicionado
