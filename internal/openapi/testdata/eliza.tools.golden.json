@@ -9,7 +9,8 @@
     "Caminho": "/api/v1/autoatendimento/agendamentos",
     "Args": {},
     "BodyObrigatorio": false,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -51,7 +52,8 @@
       "servicoId": "body"
     },
     "BodyObrigatorio": true,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -81,7 +83,8 @@
       "motivo": "body"
     },
     "BodyObrigatorio": false,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -106,7 +109,8 @@
       "id": "path"
     },
     "BodyObrigatorio": false,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -142,7 +146,8 @@
       "profissionalId": "body"
     },
     "BodyObrigatorio": true,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -154,7 +159,8 @@
     "Caminho": "/api/v1/autoatendimento/cadastro",
     "Args": {},
     "BodyObrigatorio": false,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -191,7 +197,8 @@
       "nome": "body"
     },
     "BodyObrigatorio": true,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -232,7 +239,8 @@
       "nome": "body"
     },
     "BodyObrigatorio": true,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -257,7 +265,8 @@
       "nome": "query"
     },
     "BodyObrigatorio": false,
-    "Publica": false
+    "Publica": false,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -293,7 +302,8 @@
       "servicoId": "query"
     },
     "BodyObrigatorio": false,
-    "Publica": true
+    "Publica": true,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -305,7 +315,8 @@
     "Caminho": "/api/v1/autoatendimento/profissionais",
     "Args": {},
     "BodyObrigatorio": false,
-    "Publica": true
+    "Publica": true,
+    "Agenda": false
   },
   {
     "Decl": {
@@ -317,6 +328,7 @@
     "Caminho": "/api/v1/autoatendimento/servicos",
     "Args": {},
     "BodyObrigatorio": false,
-    "Publica": true
+    "Publica": true,
+    "Agenda": false
   }
 ]

@@ -69,6 +69,7 @@ de OpenAPI próprio (ex.: Scribe).
 | P4 | **Go**, partindo do motor do Smaug | Node/TS, Python | Motor e gateway já existem em Go; binário único de ~20–40 MB; a linguagem é indiferente para quem integra, porque o contrato é OpenAPI + HTTP |
 | P5 | Nome **`sola-agens`**, em `Projetos/sola-agens`, repositório próprio (como os outros produtos da Sola) | Dentro do Eliza | É de todos os sistemas da Sola |
 | P6 | Ordem dos agentes: **Eliza → Site → Axios Calc → SolaBridge** | Eliza → Axios → Bridge → Site | Decisão do Sérgio |
+| P7 | **Agenda fechada = modo triagem**: com `janelaMaximaDias = 0` o agente esconde as ferramentas marcadas `x-atendente-agenda`, não promete horário e chama a equipe com `chamar_humano(motivo=triagem)` | Fechar a agenda só no sistema e deixar o LLM explicar o erro `AGENDA_FECHADA` | O sistema não vende horário que a equipe não quer dar, mas a cliente não fica sem resposta: a equipe recebe o pedido já resumido. O motor não conhece nomes de operação do Eliza, só a marca (contrato 11 do Eliza) |
 | E6 | A Evolution do Eliza roda **na VPS da Sola**, sem relação com a Geti | — | Confirmado pelo Sérgio em 2026-10-09 |
 
 Herdadas da análise do Eliza e válidas para a plataforma inteira (com as revisões da rodada 2 no

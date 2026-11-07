@@ -95,12 +95,29 @@ Fora das ferramentas, chamadas pelo motor: `obterContexto` (todo turno), `enviar
 `chamar_humano(motivo, resumo)` — declarada pelo motor em todo agente que tenha `operacoes.escalar`.
 
 - `motivo`: enum do sistema (Eliza: `pedido_do_cliente`, `cliente_ambiguo`, `fora_da_politica`,
-  `nao_entendi`, `reclamacao`, `numero_novo`*, `outro`). *`numero_novo` pedido no PR do Eliza.
+  `nao_entendi`, `reclamacao`, `numero_novo`*, `triagem`**, `outro`). *`numero_novo` pedido no PR do Eliza.
+  **`triagem`: pedido de marcar/remarcar com a agenda fechada (ver §4.1).
 - `resumo`: até 1000 caracteres, para a equipe.
 - Executa a operação `escalar` do sistema. Resultado ao LLM: `{ equipeNotificada: bool }`; com
   `false`, o prompt manda dizer ao cliente que a equipe vai ver a conversa assim que puder.
 - O motor também chama `escalar` sozinho (motivo `falha_tecnica`*, se o sistema aceitar; senão
   `outro`) quando um turno aborta por erro técnico (03 F2).
+
+### 4.1 Agenda fechada e modo triagem
+
+Contrato 11 do Eliza (agenda visível). `GET /contexto` traz `politica.janelaMaximaDias`; com **0** a agenda
+está fechada (nenhuma data vale, nem hoje) e a operação marcada `x-atendente-agenda: true` na OpenAPI
+(`openapi.Ferramenta.Agenda`) deixa de existir no turno:
+
+- **Ferramentas:** as marcadas com `Agenda` saem das declarações enviadas ao LLM (WhatsApp e web) e uma chamada
+  a elas devolve `FERRAMENTA_DESCONHECIDA`, como qualquer nome inexistente. No web some também
+  `preencher_agendamento`. Com janela ≥ 1 nada muda (prompt idêntico ao de antes).
+- **Prompt WhatsApp:** a linha "Política" diz `agenda fechada para marcação automática` e a regra "Para marcar"
+  dá lugar ao bloco **MODO TRIAGEM**: sem oferecer, consultar nem prometer horário; descobrir serviço
+  (`listarServicos` vale) e preferência de dia e turno; avisar que a equipe confirma pessoalmente; chamar
+  `chamar_humano(motivo=triagem)` com resumo, uma vez por pedido e na mesma resposta que avisa o cliente.
+  Remarcar também é triagem; cancelar e confirmar seguem as regras normais.
+- **Prompt web:** responde que a agenda online está fechada e que o cliente fale com o estabelecimento.
 
 ## 5. Dicionário de respostas padrão (M3)
 

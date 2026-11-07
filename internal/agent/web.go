@@ -112,18 +112,19 @@ func (m *Motor) inicioDoDia() time.Time {
 }
 
 type turnoWeb struct {
-	m      *Motor
-	ag     *Agente
-	id     store.ConversaID
-	ctx    context.Context
-	ident  conector.Identidade
-	inicio time.Time
-	modelo string
-	iter   int
-	tin    int
-	tout   int
-	ferr   []store.FerramentaLog
-	acao   *entrada.AcaoWeb
+	m       *Motor
+	ag      *Agente
+	id      store.ConversaID
+	ctx     context.Context
+	ident   conector.Identidade
+	inicio  time.Time
+	modelo  string
+	iter    int
+	tin     int
+	tout    int
+	ferr    []store.FerramentaLog
+	acao    *entrada.AcaoWeb
+	fechada bool // agenda fechada neste turno (JanelaMaximaDias == 0)
 }
 
 func (t *turnoWeb) rodar(texto string, msg entrada.MensagemWeb) (string, error) {
@@ -152,9 +153,14 @@ func (t *turnoWeb) rodar(texto string, msg entrada.MensagemWeb) (string, error) 
 	}
 	contents = append(contents, llm.Turn{Role: "user", Parts: []llm.Part{{Text: texto}}})
 
-	decls := []llm.ToolDecl{preencherDecl()}
+	t.fechada = agendaFechada(c)
+	// Agenda fechada: o chat não preenche formulário nem consulta horário.
+	decls := []llm.ToolDecl{}
+	if !t.fechada {
+		decls = append(decls, preencherDecl())
+	}
 	for _, f := range t.ag.Ferramentas {
-		if f.Publica {
+		if f.Publica && visivel(f, t.fechada) {
 			decls = append(decls, f.Decl)
 		}
 	}
@@ -207,13 +213,13 @@ func (t *turnoWeb) executar(calls []llm.FunctionCall) ([]llm.Part, error) {
 	partes := make([]llm.Part, 0, len(calls))
 	for _, c := range calls {
 		var res map[string]any
-		if c.Name == nomePreencher {
+		if c.Name == nomePreencher && !t.fechada {
 			res = t.preencher(c.Args)
 		} else {
 			f, ok := t.ag.Ferramenta(c.Name)
 			// A lista pública é a fronteira: o que está fora não executa, mesmo que
 			// o modelo tente (S37).
-			if !ok || !f.Publica {
+			if !ok || !f.Publica || !visivel(f, t.fechada) {
 				t.ferr = append(t.ferr, store.FerramentaLog{Nome: c.Name, Codigo: "FERRAMENTA_DESCONHECIDA"})
 				res = map[string]any{"erro": "FERRAMENTA_DESCONHECIDA", "mensagem": "essa ferramenta não existe"}
 			} else {

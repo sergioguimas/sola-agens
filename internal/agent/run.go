@@ -45,7 +45,7 @@ const (
 
 // motivosHumano é o enum de chamar_humano (specs/02 §4). "falha_tecnica" fica
 // de fora: é só do motor (F2).
-var motivosHumano = []string{"pedido_do_cliente", "cliente_ambiguo", "fora_da_politica", "nao_entendi", "reclamacao", "numero_novo", "outro"}
+var motivosHumano = []string{"pedido_do_cliente", "cliente_ambiguo", "fora_da_politica", "nao_entendi", "reclamacao", "numero_novo", "triagem", "outro"}
 
 // codigosTicket: o ticket (ou o acesso) não vale mais (specs/03 F1 passo 13).
 var codigosTicket = map[string]bool{
@@ -109,6 +109,7 @@ type turnoExec struct {
 	custoTranscricao      int64
 	escalou               bool
 	escrita               bool // houve escrita (método ≠ GET) com sucesso
+	fechada               bool // agenda fechada neste turno (JanelaMaximaDias == 0)
 }
 
 // Run executa o turno: F1 passos 10–18 e F2 (specs/03). Erros de regra e falhas
@@ -177,6 +178,7 @@ func (e *turnoExec) rodar() error {
 		return e.falhar(&falha{etapa: "memória", resultado: ResultadoErroSistema, causa: err})
 	}
 	e.dic = Mesclar(e.m.padrao(), c.Atendente)
+	e.fechada = agendaFechada(c)
 	if c.Identificacao.Situacao == sistema.SituacaoIdentificado && c.Identificacao.Cliente != nil {
 		e.nome = c.Identificacao.Cliente.PrimeiroNome
 	}
@@ -265,10 +267,20 @@ func (e *turnoExec) respostaMidiaFixa() string {
 
 // --- passos 15 e 16: prompt, memória e loop -------------------------------
 
+// agendaFechada: a janela de agenda do turno é 0 (nenhuma data vale, nem hoje).
+// Vem do contexto do turno, nunca da memória.
+func agendaFechada(c sistema.Contexto) bool { return c.Politica.JanelaMaximaDias == 0 }
+
+// visivel diz se a ferramenta existe neste turno: com a agenda fechada as
+// ferramentas marcadas x-atendente-agenda somem (e valem como desconhecidas).
+func visivel(f openapi.Ferramenta, fechada bool) bool { return !(fechada && f.Agenda) }
+
 func (e *turnoExec) decls() []llm.ToolDecl {
 	out := make([]llm.ToolDecl, 0, len(e.ag.Ferramentas)+1)
 	for _, f := range e.ag.Ferramentas {
-		out = append(out, f.Decl)
+		if visivel(f, e.fechada) {
+			out = append(out, f.Decl)
+		}
 	}
 	return append(out, chamarHumanoDecl())
 }
@@ -424,7 +436,7 @@ func (e *turnoExec) executarChamadas(calls []llm.FunctionCall) ([]llm.Part, *fal
 			res = e.chamarHumano(call.Args)
 		default:
 			f, ok := e.ag.Ferramenta(call.Name)
-			if !ok {
+			if !ok || !visivel(f, e.fechada) {
 				e.ferr = append(e.ferr, store.FerramentaLog{Nome: call.Name, Codigo: "FERRAMENTA_DESCONHECIDA"})
 				res = map[string]any{"erro": "FERRAMENTA_DESCONHECIDA", "mensagem": "essa ferramenta não existe"}
 				break
@@ -484,6 +496,12 @@ func (e *turnoExec) chamarHumano(args map[string]any) map[string]any {
 		resumo = string(r[:maxResumo])
 	}
 	notificada, err := e.ag.Sistema.Escalar(e.ctx, e.ident, motivo, strings.TrimSpace(resumo))
+	var es *sistema.ErrSistema
+	if motivo == "triagem" && errors.As(err, &es) {
+		// Sistema que ainda não conhece "triagem" (contrato 11) recusa o motivo: o pedido
+		// fora da agenda automática é exatamente "fora_da_politica".
+		notificada, err = e.ag.Sistema.Escalar(e.ctx, e.ident, "fora_da_politica", strings.TrimSpace(resumo))
+	}
 	if err != nil {
 		status, codigo := codigoDe(err)
 		// DECISÃO: status 0 quando o escalar dá certo — sistema.Escalar não expõe o status HTTP.
