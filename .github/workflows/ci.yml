@@ -1,66 +1,201 @@
-name: CI/CD - SolaChat
+name: CI - Sola Agens
 
 on:
   push:
     branches: [main]
   pull_request:
+  # Vulnerabilidade nova aparece sem mudança de código (stdlib, modernc, imagem base):
+  # rodar toda segunda pega isso antes do próximo deploy.
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# PR com push novo cancela a execução anterior; na main cada commit roda até o fim.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Mesmo build da imagem: SQLite é modernc (pure Go), nada pode depender de cgo.
+  CGO_ENABLED: "0"
+
 jobs:
-  sast-security:
-    name: SAST (Gosec & Opengrep)
+  test:
+    name: Testes (vet, race, golden)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      # Lê a diretiva toolchain (go1.26.10) do go.mod, a mesma versão do Dockerfile.
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
 
-      - name: Executar Gosec (AST Security)
+      - name: go.mod/go.sum íntegros e arrumados
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
-          gosec -exclude-generated -severity medium ./...
+          go mod verify
+          go mod tidy -diff
 
-      - name: Executar Opengrep (Semantic SAST)
+      - name: go vet (linux e windows)
+        # O build roda no Windows (PLANO-DE-BUILD) e há sighup_unix.go / sighup_other.go.
         run: |
-          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
-          export PATH="$HOME/.opengrep/cli/latest:$PATH"
-          
-          # Baixa as regras open-source compatíveis (Semgrep Community Rules)
-          git clone --depth 1 https://github.com/opengrep/opengrep-rules.git /tmp/rules
-          
-          # Executa o scan apontando para as regras de Go e Segurança
-          opengrep scan \
-            -f /tmp/rules/go \
-            -f /tmp/rules/dockerfile \
-            --error .
+          go vet ./...
+          GOOS=windows go vet ./...
+
+      - name: go test -race
+        # -race exige cgo; só aqui. Sem rede nem chave: modelo, sistema e transcrição são fakes.
+        env:
+          CGO_ENABLED: "1"
+        run: go test -race -shuffle=on -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Cobertura
+        run: |
+          {
+            echo '### Cobertura'
+            echo '```'
+            go tool cover -func=coverage.out | tail -n 1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Goldens não regravados por engano
+        # Se alguém rodou -update e esqueceu de commitar (ou o teste escreve em testdata/).
+        run: git diff --exit-code -- internal/agent/testdata internal/openapi/testdata
+
+      - name: Build estático (como no Dockerfile)
+        run: |
+          go build -trimpath -ldflags="-s -w" -o /tmp/sola-agens .
+          GOOS=windows go build -o /tmp/sola-agens.exe .
+
   lint:
-    name: Lint
+    name: Lint + Gosec
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
+      # gosec roda dentro do golangci-lint (.golangci.yml), versão fixa junto com o lint.
       - uses: golangci/golangci-lint-action@v8
         with:
           version: v2.15.0
 
+  sast:
+    name: SAST (Opengrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Instalar Opengrep e regras
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+          echo "$HOME/.opengrep/cli/latest" >> "$GITHUB_PATH"
+          git clone --depth 1 https://github.com/opengrep/opengrep-rules.git /tmp/rules
+
+      - name: Executar Opengrep
+        # go: código; dockerfile: imagem; yaml/github-actions: injeção nos próprios workflows.
+        run: |
+          opengrep scan \
+            -f /tmp/rules/go \
+            -f /tmp/rules/dockerfile \
+            -f /tmp/rules/yaml/github-actions \
+            --error .
+
   vuln:
     name: govulncheck
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache-dependency-path: go.sum
+      # Analisa com a toolchain do go.mod: é ela que decide se a stdlib está vulnerável
+      # (AUDITORIA-SEGURANCA §1: 1.26.0 tinha 28 alcançáveis, 1.26.10 zero).
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  consistencia:
+    name: Consistência (Go, versão)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Go do Dockerfile = toolchain do go.mod
+        # O Dockerfile fixa golang:X.Y.Z; se só o go.mod subir, a imagem baixa o Go novo
+        # no build (GOTOOLCHAIN=auto) mas a tag fica mentindo. Os dois andam juntos.
+        run: |
+          mod=$(sed -n 's/^toolchain go//p' go.mod)
+          img=$(sed -n 's/^FROM golang:\([0-9.]*\).*/\1/p' Dockerfile)
+          echo "go.mod toolchain=$mod  Dockerfile golang=$img"
+          if [ -z "$mod" ] || [ "$mod" != "$img" ]; then
+            echo "::error file=Dockerfile::golang:$img no Dockerfile difere de toolchain go$mod no go.mod"
+            exit 1
+          fi
+
+      - name: VERSION tem entrada no CHANGELOG
+        run: |
+          v=$(tr -d '[:space:]' < VERSION)
+          if ! grep -q "^## \[$v\]" CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::VERSION=$v sem seção '## [$v]' no CHANGELOG.md"
+            exit 1
+          fi
 
   image:
     name: Imagem Docker
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - run: docker build -t sola-chat:ci .
+        with:
+          persist-credentials: false
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: sola-agens:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Conferir imagem
+        # Usuário não-root, healthcheck e o que vai para o container (agentes/ sim, .env não).
+        run: |
+          docker image inspect sola-agens:ci --format 'user={{.Config.User}} health={{.Config.Healthcheck.Test}}'
+          test "$(docker image inspect sola-agens:ci --format '{{.Config.User}}')" = "nonroot:nonroot"
+          cid=$(docker create sola-agens:ci)
+          docker cp "$cid:/agentes/eliza.yaml" - > /dev/null
+          if docker cp "$cid:/.env" - > /dev/null 2>&1; then
+            echo "::error::.env foi parar na imagem"; exit 1
+          fi
+          docker rm "$cid" >/dev/null
+          {
+            echo '### Imagem'
+            docker image ls sola-agens:ci --format 'tamanho: {{.Size}}'
+          } >> "$GITHUB_STEP_SUMMARY"

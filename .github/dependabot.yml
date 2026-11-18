@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # modernc.org/sqlite traz a SQLite C transpilada, que o govulncheck não cobre
+  # (AUDITORIA-SEGURANCA): atualizar cedo é a defesa.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      modernc:
+        patterns: ["modernc.org/*"]
+
+  # golang:X.Y.Z e o digest do distroless. Ao subir o golang, subir junto o
+  # toolchain do go.mod (o job "Consistência" do CI cobra isso).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

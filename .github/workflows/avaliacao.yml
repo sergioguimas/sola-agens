@@ -1,0 +1,74 @@
+name: Avaliação do atendente (Gemini real)
+
+# Manual: custa tokens e o resultado varia com o modelo. Rodar antes de trocar
+# AGENS_MODEL, mexer no prompt ou em agentes/*.yaml. Precisa do secret GEMINI_API_KEY
+# (plano pago: o gratuito pode usar o conteúdo).
+on:
+  workflow_dispatch:
+    inputs:
+      bateria:
+        description: "Bateria"
+        type: choice
+        options: [cenarios, treino, web]
+        default: cenarios
+      cenario:
+        description: "Só um cenário (id); vazio = todos"
+        required: false
+      vezes:
+        description: "Repetições por cenário (estabilidade)"
+        default: "1"
+      modelo:
+        description: "Modelo do Gemini; vazio = AGENS_MODEL"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avaliacao
+  cancel-in-progress: false
+
+jobs:
+  avaliar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: avaliacao
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Rodar avaliação
+        # Inputs entram por env, nunca interpolados no script (injeção).
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BATERIA: ${{ inputs.bateria }}
+          CENARIO: ${{ inputs.cenario }}
+          VEZES: ${{ inputs.vezes }}
+          MODELO: ${{ inputs.modelo }}
+        run: |
+          args=(-vezes "$VEZES")
+          case "$BATERIA" in
+            treino) args+=(-treino) ;;
+            web)    args+=(-web) ;;
+          esac
+          [ -n "$CENARIO" ] && args+=(-cenario "$CENARIO")
+          [ -n "$MODELO" ]  && args+=(-modelo "$MODELO")
+          set -o pipefail
+          go run ./avaliacao "${args[@]}" 2>&1 | tee avaliacao.txt
+
+      - name: Resumo
+        if: always()
+        env:
+          BATERIA: ${{ inputs.bateria }}
+        run: |
+          {
+            echo "### Avaliação ($BATERIA)"
+            echo '```'
+            tail -n 40 avaliacao.txt 2>/dev/null || echo "sem saída"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

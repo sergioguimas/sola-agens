@@ -1,0 +1,21 @@
+version: "2"
+
+linters:
+  # standard = errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - gosec      # mesmo corte do padrão Sola: severidade medium para cima
+    - bodyclose  # conector, Gemini, Groq e sistema fazem muitas chamadas HTTP
+  settings:
+    gosec:
+      severity: medium
+  exclusions:
+    generated: lax
+    rules:
+      # Testes leem goldens e fixtures de caminhos montados no próprio teste.
+      - path: _test\.go
+        linters: [gosec]
+
+formatters:
+  enable:
+    - gofmt
