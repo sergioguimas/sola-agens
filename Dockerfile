@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Estágio de build: Go estático (sem cgo), módulos em cache própria.
 # Versão exata: a tag 1.26 flutua e pode trazer um Go sem as correções de segurança.
-FROM golang:1.26.10 AS build
+FROM golang:1.27.3 AS build
 # A imagem oficial define GOTOOLCHAIN=local, que ignora a linha toolchain do go.mod;
 # com auto, o go.mod é a fonte da versão e uma atualização lá vale também aqui.
 ENV GOTOOLCHAIN=auto
