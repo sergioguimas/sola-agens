@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 30
     environment: avaliacao
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-go@v6
